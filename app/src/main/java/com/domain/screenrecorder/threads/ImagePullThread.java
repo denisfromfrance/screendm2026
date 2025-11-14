@@ -73,7 +73,7 @@ public class ImagePullThread extends Thread{
 
     public void connectToServer() throws IOException{
         socket = new Socket();
-        socket.connect(new InetSocketAddress("192.168.43.1", 5000), 5000);
+        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
         outputStream = socket.getOutputStream();
     }
 
