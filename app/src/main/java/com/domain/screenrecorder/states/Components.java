@@ -10,10 +10,13 @@ import android.widget.TextView;
 import androidx.core.content.res.ResourcesCompat;
 
 import com.domain.screenrecorder.R;
+import com.domain.screenrecorder.threads.ImagePullThread;
 
 public class Components {
     private static TextView connectionStatus;
     private static View connectionStatusIcon;
+
+    private static ImagePullThread imagePullThread;
 
     private static Context applicationContext;
 
@@ -29,11 +32,20 @@ public class Components {
         }
     }
 
+    public static void setThread(ImagePullThread thread){
+        imagePullThread = thread;
+    }
+
     public static void setConnectionStatusIcon(View iconView){
         if (connectionStatusIcon == null) {
             connectionStatusIcon = iconView;
         }
     }
+
+    public static ImagePullThread getThread(){
+        return imagePullThread;
+    }
+
 
     public static void setConnectionStatus(int isConnected){
         new Handler(Looper.getMainLooper()).post(new Runnable() {
