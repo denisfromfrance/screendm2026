@@ -26,6 +26,7 @@ import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 
 import com.domain.screenrecorder.R;
+import com.domain.screenrecorder.states.Components;
 import com.domain.screenrecorder.threads.ImagePullThread;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -56,13 +57,10 @@ public class ScreenRecorderService extends Service {
     Handler handler;
     Runnable captureRunnable;
 
-    ImagePullThread imagePullThread;
-
     private TextRecognizer textRecognition;
 
     public ScreenRecorderService() {
         textRecognition = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
-        imagePullThread = new ImagePullThread();
     }
 
     private void setupMediaRecorder(){
@@ -121,22 +119,24 @@ public class ScreenRecorderService extends Service {
                 final Bitmap[] bitmap = {Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888)};
                 PixelCopy.request(surface, bitmap[0], copyResult -> {
                     if (copyResult == PixelCopy.SUCCESS){
-                        System.out.println("Bitmap loaded successfully!");
+                        //System.out.println("Bitmap loaded successfully!");
                         Bitmap originalBitmap = bitmap[0];
                         bitmap[0] = Bitmap.createBitmap(originalBitmap, 0, 200, WIDTH, HEIGHT - 300);
                         InputImage inputImage = InputImage.fromBitmap(bitmap[0], 0);
                         textRecognition.process(inputImage)
                                 .addOnSuccessListener(new OnSuccessListener<Text>() {
+
                                     @Override
                                     public void onSuccess(Text text) {
-                                        imagePullThread.setTextData(text.getText());
+                                        Components.getThread().setTextData(text.getText());
+                                        /*
                                         System.out.println("Recognized Text: " + text.getText());
                                         for (Text.TextBlock textBlock : text.getTextBlocks()){
                                             System.out.println("TextBlock: " + textBlock.getText());
                                             for (Text.Line textLine : textBlock.getLines()){
                                                 System.out.println("\t\t" + textLine.getText());
                                             }
-                                        }
+                                        }*/
                                     }
                                 })
                                 .addOnFailureListener(new OnFailureListener() {
@@ -180,7 +180,6 @@ public class ScreenRecorderService extends Service {
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         mediaProjection = projectionManager.getMediaProjection(resultCode, data);
         System.out.println("Setting up everything...");
-        imagePullThread.start();
         setupMediaRecorder();
         createVirtualDisplay();
         mediaRecorder.start();
@@ -210,15 +209,19 @@ public class ScreenRecorderService extends Service {
         }
 
         if (mediaRecorder != null){
-            mediaRecorder.stop();
-            mediaRecorder.reset();
+            try{
+                mediaRecorder.stop();
+                mediaRecorder.reset();
+            }catch(Exception exception){
+                exception.printStackTrace();
+            }
         }
 
         if (mediaProjection != null){
             mediaProjection.stop();
         }
 
-        imagePullThread.terminateConnection();
+        Components.getThread().terminateConnection();
 
         stopForeground(true);
     }

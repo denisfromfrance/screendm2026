@@ -18,6 +18,7 @@ import android.widget.TextView;
 
 import com.domain.screenrecorder.services.ScreenRecorderService;
 import com.domain.screenrecorder.states.Components;
+import com.domain.screenrecorder.threads.ImagePullThread;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -27,6 +28,8 @@ public class MainActivity extends AppCompatActivity {
     TextView connectionStatus;
     View connectionStatusIcon;
 
+    ImagePullThread imagePullThread;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -34,11 +37,24 @@ public class MainActivity extends AppCompatActivity {
         connectionStatus = findViewById(R.id.connectionstatus);
         connectionStatusIcon = findViewById(R.id.connectionstatusicon);
 
+        imagePullThread = new ImagePullThread();
+
         Components.setApplicationContext(getApplicationContext());
         Components.setConnectionStatus(connectionStatus);
         Components.setConnectionStatusIcon(connectionStatusIcon);
 
+        Components.setThread(imagePullThread);
+
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+
+        Button connectButton = findViewById(R.id.connectButton);
+        connectButton.setOnClickListener(v -> {
+            try{
+                imagePullThread.start();
+            }catch(Exception exception){
+                exception.printStackTrace();
+            }
+        });
 
         Button startButton = findViewById(R.id.startButton);
         startButton.setOnClickListener(v -> {

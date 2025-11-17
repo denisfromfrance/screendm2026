@@ -103,7 +103,7 @@ public class ImagePullThread extends Thread{
     }
 
     public void setTextData(String text){
-        this.textData = text;
+        this.textData = text + "\n";
         System.out.println("Received text: " + text);
     }
 }
