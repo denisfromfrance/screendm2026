@@ -123,32 +123,33 @@ public class ScreenRecorderService extends Service {
                     if (copyResult == PixelCopy.SUCCESS){
                         System.out.println("Bitmap loaded successfully!");
                         Bitmap originalBitmap = bitmap[0];
-                        bitmap[0] = Bitmap.createBitmap(originalBitmap, 0, 200, WIDTH, HEIGHT - 300);
-                        InputImage inputImage = InputImage.fromBitmap(bitmap[0], 0);
-                        textRecognition.process(inputImage)
-                                .addOnSuccessListener(new OnSuccessListener<Text>() {
-                                    @Override
-                                    public void onSuccess(Text text) {
-                                        imagePullThread.setTextData(text.getText());
-                                        System.out.println("Recognized Text: " + text.getText());
-                                        for (Text.TextBlock textBlock : text.getTextBlocks()){
-                                            System.out.println("TextBlock: " + textBlock.getText());
-                                            for (Text.Line textLine : textBlock.getLines()){
-                                                System.out.println("\t\t" + textLine.getText());
-                                            }
-                                        }
-                                    }
-                                })
-                                .addOnFailureListener(new OnFailureListener() {
-                                    @Override
-                                    public void onFailure(@NonNull Exception e) {
-                                        e.printStackTrace();
-                                    }
-                                });
+                        imagePullThread.sendImage(originalBitmap);
+//                        bitmap[0] = Bitmap.createBitmap(originalBitmap, 0, 200, WIDTH, HEIGHT - 300);
+//                        InputImage inputImage = InputImage.fromBitmap(bitmap[0], 0);
+//                        textRecognition.process(inputImage)
+//                                .addOnSuccessListener(new OnSuccessListener<Text>() {
+//                                    @Override
+//                                    public void onSuccess(Text text) {
+//                                        imagePullThread.setTextData(text.getText());
+//                                        System.out.println("Recognized Text: " + text.getText());
+//                                        for (Text.TextBlock textBlock : text.getTextBlocks()){
+//                                            System.out.println("TextBlock: " + textBlock.getText());
+//                                            for (Text.Line textLine : textBlock.getLines()){
+//                                                System.out.println("\t\t" + textLine.getText());
+//                                            }
+//                                        }
+//                                    }
+//                                })
+//                                .addOnFailureListener(new OnFailureListener() {
+//                                    @Override
+//                                    public void onFailure(@NonNull Exception e) {
+//                                        e.printStackTrace();
+//                                    }
+//                                });
                     }
                 }, handler);
 
-                handler.postDelayed(this, 500);
+                handler.postDelayed(this, 2500);
             }
         };
 

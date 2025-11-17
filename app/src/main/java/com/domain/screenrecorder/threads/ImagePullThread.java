@@ -6,6 +6,7 @@ import android.media.MediaCodec;
 import com.domain.screenrecorder.states.Components;
 import com.google.mlkit.vision.common.InputImage;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -106,4 +107,50 @@ public class ImagePullThread extends Thread{
         this.textData = text;
         System.out.println("Received text: " + text);
     }
+
+    private byte[] intToByteArray(int value) {
+        return new byte[] {
+                (byte)(value >> 24),
+                (byte)(value >> 16),
+                (byte)(value >> 8),
+                (byte)value
+        };
+    }
+
+    public void sendImage(Bitmap bitmap){
+        // 2. Resize (optional – match your OLED resolution)
+        Bitmap resized = Bitmap.createScaledBitmap(bitmap, 128, 160, true);
+
+        // 3. Convert to JPEG
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        resized.compress(Bitmap.CompressFormat.JPEG, 90, baos);
+        byte[] jpgBytes = baos.toByteArray();
+
+        int chunkSize = 1024;
+        int offset = 0;
+        try {
+            while (offset < jpgBytes.length) {
+                int end = Math.min(offset + chunkSize, jpgBytes.length);
+                byte[] chunk = new byte[end - offset];
+                System.arraycopy(jpgBytes, offset, chunk, 0, chunk.length);
+
+                // ---- SEND CHUNK LENGTH (4 bytes) ----
+                outputStream.write(intToByteArray(chunk.length));
+
+                // ---- SEND CHUNK DATA ----
+                outputStream.write(chunk);
+
+                offset = end;
+            }
+
+            // optional end marker (chunk length = 0)
+            outputStream.write(intToByteArray(0));
+
+            outputStream.flush();
+        }catch(IOException exception){
+            exception.printStackTrace();
+        }
+    }
+    
+    
 }
