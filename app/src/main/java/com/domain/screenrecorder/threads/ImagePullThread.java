@@ -43,9 +43,11 @@ public class ImagePullThread extends Thread{
             Components.setConnectionStatus(1);
 //            MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
             while (started) {
+
+                /*
                 if (!textData.equals("")) {
                     sendDataToServer();
-                }
+                }*/
 
                 if (imageQueue.size() != 0){
                     prepareImageAndSend(imageQueue.poll(), 160, 128);
@@ -167,7 +169,9 @@ public class ImagePullThread extends Thread{
     private void sendBytes(byte[] bytes){
         int chunkSize = 1024;
         int totalChunks = (int)Math.ceil(bytes.length / (double)chunkSize);
-        String header = "IMG " + totalChunks + " " + bytes.length;
+        String header = "IMG " + totalChunks + " " + bytes.length + '\n';
+        System.out.println("Sending header and data!");
+        System.out.println("Total Chunks sending " + totalChunks + " of size " + chunkSize);
         try {
             outputStream.write(header.getBytes(StandardCharsets.UTF_8));
 
@@ -184,6 +188,7 @@ public class ImagePullThread extends Thread{
 
     private void prepareImageAndSend(Bitmap bitmap, int width, int height){
         Bitmap image = prepareImageForDisplay(bitmap, width, height);
+        System.out.println("Image received.");
         sendBytes(bitmapTo1BitArray(image));
     }
 
