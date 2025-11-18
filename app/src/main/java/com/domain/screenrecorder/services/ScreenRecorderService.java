@@ -123,7 +123,7 @@ public class ScreenRecorderService extends Service {
                     if (copyResult == PixelCopy.SUCCESS){
                         System.out.println("Bitmap loaded successfully!");
                         Bitmap originalBitmap = bitmap[0];
-                        imagePullThread.sendImage(originalBitmap);
+                        imagePullThread.addImageToQueue(originalBitmap);
 //                        bitmap[0] = Bitmap.createBitmap(originalBitmap, 0, 200, WIDTH, HEIGHT - 300);
 //                        InputImage inputImage = InputImage.fromBitmap(bitmap[0], 0);
 //                        textRecognition.process(inputImage)

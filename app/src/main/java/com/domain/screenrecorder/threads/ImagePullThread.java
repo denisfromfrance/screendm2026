@@ -13,18 +13,18 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ImagePullThread extends Thread{
     Socket socket;
     OutputStream outputStream;
     MediaCodec encoder;
 
-    InputImage inputImage;
-    Bitmap bitmap;
-
     public String textData;
 
     private boolean started = false;
+
+    private ConcurrentLinkedQueue<Bitmap> imageQueue;
 
     public ImagePullThread(MediaCodec encoder){
         this.encoder = encoder;
@@ -32,6 +32,7 @@ public class ImagePullThread extends Thread{
 
     public ImagePullThread(){
         textData = "";
+        imageQueue = new ConcurrentLinkedQueue<>();
     }
 
     @Override
@@ -45,16 +46,11 @@ public class ImagePullThread extends Thread{
                 if (!textData.equals("")) {
                     sendDataToServer();
                 }
-//                int outputIndex = encoder.dequeueOutputBuffer(bufferInfo, 10000);
-//                if (outputIndex >= 0) {
-//                    ByteBuffer encodedData = encoder.getOutputBuffer(outputIndex);
-//                    if (encodedData != null) {
-//                        byte[] frameData = new byte[bufferInfo.size];
-//                        encodedData.get(frameData);
-////                        sendFrameToServer(frameData);
-//                    }
-//                    encoder.releaseOutputBuffer(outputIndex, false);
-//                }
+
+                if (imageQueue.size() != 0){
+                    prepareImageAndSend(imageQueue.poll(), 160, 128);
+                }
+
             }
         }catch (IOException exception){
             Components.setConnectionStatus(-1);
@@ -117,40 +113,119 @@ public class ImagePullThread extends Thread{
         };
     }
 
-    public void sendImage(Bitmap bitmap){
-        // 2. Resize (optional – match your OLED resolution)
-        Bitmap resized = Bitmap.createScaledBitmap(bitmap, 128, 160, true);
+    private Bitmap prepareImageForDisplay(Bitmap original, int targetWidth, int targetHeight) {
 
-        // 3. Convert to JPEG
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        resized.compress(Bitmap.CompressFormat.JPEG, 90, baos);
-        byte[] jpgBytes = baos.toByteArray();
+        // 2. Resize to match your display (e.g., 96x64 or 50x50)
+        Bitmap resized = Bitmap.createScaledBitmap(original, targetWidth, targetHeight, true);
 
-        int chunkSize = 1024;
-        int offset = 0;
-        try {
-            while (offset < jpgBytes.length) {
-                int end = Math.min(offset + chunkSize, jpgBytes.length);
-                byte[] chunk = new byte[end - offset];
-                System.arraycopy(jpgBytes, offset, chunk, 0, chunk.length);
+        // 3. Convert to Black & White
+        Bitmap bwBitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888);
 
-                // ---- SEND CHUNK LENGTH (4 bytes) ----
-                outputStream.write(intToByteArray(chunk.length));
+        for (int y = 0; y < targetHeight; y++) {
+            for (int x = 0; x < targetWidth; x++) {
 
-                // ---- SEND CHUNK DATA ----
-                outputStream.write(chunk);
+                int color = resized.getPixel(x, y);
 
-                offset = end;
+                int r = (color >> 16) & 0xFF;
+                int g = (color >> 8) & 0xFF;
+                int b = (color) & 0xFF;
+
+                // Luminance formula
+                int gray = (int) (0.299*r + 0.587*g + 0.114*b);
+
+                // If you want pure black/white (threshold)
+                int bw = (gray < 128) ? 0xFF000000 : 0xFFFFFFFF;
+
+                bwBitmap.setPixel(x, y, bw);
             }
+        }
 
-            // optional end marker (chunk length = 0)
-            outputStream.write(intToByteArray(0));
+        return bwBitmap;
+    }
 
-            outputStream.flush();
+
+    private byte[] bitmapTo1BitArray(Bitmap bmp) {
+        int width = bmp.getWidth();
+        int height = bmp.getHeight();
+
+        byte[] bytes = new byte[width * height]; // 1 byte per pixel (0 or 1)
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+
+                int pixel = bmp.getPixel(x, y);
+                int r = (pixel >> 16) & 0xFF;
+
+                // Assume black = 1, white = 0
+                bytes[y * width + x] = (byte) (r < 128 ? 1 : 0);
+            }
+        }
+
+        return bytes;
+    }
+
+    private void sendBytes(byte[] bytes){
+        int chunkSize = 1024;
+        int totalChunks = (int)Math.ceil(bytes.length / (double)chunkSize);
+        String header = "IMG " + totalChunks + " " + bytes.length;
+        try {
+            outputStream.write(header.getBytes(StandardCharsets.UTF_8));
+
+            for (int i = 0; i < totalChunks; i++){
+                int start = i * chunkSize;
+                int length = Math.min(chunkSize, bytes.length - start);
+                outputStream.write(bytes, start, length);
+                outputStream.flush();
+            }
         }catch(IOException exception){
             exception.printStackTrace();
         }
     }
+
+    private void prepareImageAndSend(Bitmap bitmap, int width, int height){
+        Bitmap image = prepareImageForDisplay(bitmap, width, height);
+        sendBytes(bitmapTo1BitArray(image));
+    }
+
+    public void addImageToQueue(Bitmap bitmap){
+        imageQueue.add(bitmap);
+    }
+
+
+//    private void sendImage(Bitmap bitmap){
+//        // 2. Resize (optional – match your OLED resolution)
+//        Bitmap resized = Bitmap.createScaledBitmap(bitmap, 128, 160, true);
+//
+//        // 3. Convert to JPEG
+//        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//        resized.compress(Bitmap.CompressFormat.JPEG, 90, baos);
+//        byte[] jpgBytes = baos.toByteArray();
+//
+//        int chunkSize = 1024;
+//        int offset = 0;
+//        try {
+//            while (offset < jpgBytes.length) {
+//                int end = Math.min(offset + chunkSize, jpgBytes.length);
+//                byte[] chunk = new byte[end - offset];
+//                System.arraycopy(jpgBytes, offset, chunk, 0, chunk.length);
+//
+//                // ---- SEND CHUNK LENGTH (4 bytes) ----
+//                outputStream.write(intToByteArray(chunk.length));
+//
+//                // ---- SEND CHUNK DATA ----
+//                outputStream.write(chunk);
+//
+//                offset = end;
+//            }
+//
+//            // optional end marker (chunk length = 0)
+//            outputStream.write(intToByteArray(0));
+//
+//            outputStream.flush();
+//        }catch(IOException exception){
+//            exception.printStackTrace();
+//        }
+//    }
     
     
 }
