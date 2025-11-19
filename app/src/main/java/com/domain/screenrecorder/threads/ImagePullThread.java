@@ -2,6 +2,7 @@ package com.domain.screenrecorder.threads;
 
 import android.graphics.Bitmap;
 import android.media.MediaCodec;
+import android.os.HandlerThread;
 
 import com.domain.screenrecorder.states.Components;
 import com.google.mlkit.vision.common.InputImage;
@@ -13,7 +14,10 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 
 public class ImagePullThread extends Thread{
     Socket socket;
@@ -24,7 +28,9 @@ public class ImagePullThread extends Thread{
 
     private boolean started = false;
 
-    private ConcurrentLinkedQueue<Bitmap> imageQueue;
+    private BlockingQueue<Bitmap> imageQueue;
+
+    private volatile Bitmap bitmap;
 
     public ImagePullThread(MediaCodec encoder){
         this.encoder = encoder;
@@ -32,7 +38,7 @@ public class ImagePullThread extends Thread{
 
     public ImagePullThread(){
         textData = "";
-        imageQueue = new ConcurrentLinkedQueue<>();
+        imageQueue = new LinkedBlockingDeque<>();
     }
 
     @Override
@@ -48,11 +54,64 @@ public class ImagePullThread extends Thread{
                 if (!textData.equals("")) {
                     sendDataToServer();
                 }*/
+                //System.out.println("Queu size: " + imageQueue.size());
 
-                if (imageQueue.size() != 0){
-                    prepareImageAndSend(imageQueue.poll(), 160, 128);
+                if (this.bitmap != null){
+                    prepareImageAndSend(bitmap, 128, 160);
+                }else{
+                    try {
+                        outputStream.write("EMPTY IMAGE\n".getBytes(StandardCharsets.UTF_8));
+                        outputStream.flush();
+                    }catch(IOException exception){
+                        exception.printStackTrace();
+                    }
                 }
 
+                /*
+                try{
+                    Bitmap bitmap = imageQueue.take();
+                    System.out.println("Image received. now starting to prepare it and send");
+                    if (bitmap != null){
+                        if (socket.isConnected()) {
+                            System.out.println("Connected to NodeMCU!");
+                        } else {
+                            System.out.println("Not connected!");
+                        }
+
+                    }
+
+                }catch(InterruptedException e){
+                    e.printStackTrace();
+                }*/
+
+                /*
+                if (imageQueue.size() > 0){
+                    System.out.println("Image is available in the queue. Number of images: " + imageQueue.size());
+                    try{
+                        Bitmap bitmap = imageQueue.take();
+                        System.out.println("Image received. now starting to prepare it and send");
+                        if (bitmap != null){
+                            if (socket.isConnected()) {
+                                System.out.println("Connected to NodeMCU!");
+                            } else {
+                                System.out.println("Not connected!");
+                            }
+
+                            prepareImageAndSend(bitmap, 128, 160);
+                        }
+
+                    }catch(InterruptedException e){
+                        e.printStackTrace();
+                    }
+
+                }else{
+                    try {
+                        outputStream.write("EMPTY IMAGE\n".getBytes(StandardCharsets.UTF_8));
+                        outputStream.flush();
+                    }catch(IOException exception){
+                        exception.printStackTrace();
+                    }
+                }*/
             }
         }catch (IOException exception){
             Components.setConnectionStatus(-1);
@@ -76,6 +135,7 @@ public class ImagePullThread extends Thread{
         outputStream = socket.getOutputStream();
     }
 
+    /*
     public void sendDataToServer(){
         try{
             if (outputStream != null){
@@ -104,7 +164,7 @@ public class ImagePullThread extends Thread{
     public void setTextData(String text){
         this.textData = text + "\n";
         System.out.println("Received text: " + text);
-    }
+    }*/
 
     private byte[] intToByteArray(int value) {
         return new byte[] {
@@ -167,18 +227,20 @@ public class ImagePullThread extends Thread{
     }
 
     private void sendBytes(byte[] bytes){
-        int chunkSize = 1024;
+        int chunkSize = 512;
         int totalChunks = (int)Math.ceil(bytes.length / (double)chunkSize);
         String header = "IMG " + totalChunks + " " + bytes.length + '\n';
         System.out.println("Sending header and data!");
         System.out.println("Total Chunks sending " + totalChunks + " of size " + chunkSize);
         try {
             outputStream.write(header.getBytes(StandardCharsets.UTF_8));
+            outputStream.flush();
 
             for (int i = 0; i < totalChunks; i++){
                 int start = i * chunkSize;
                 int length = Math.min(chunkSize, bytes.length - start);
                 outputStream.write(bytes, start, length);
+                System.out.println(Arrays.toString(Arrays.copyOfRange(bytes, 0, 50)));
                 outputStream.flush();
             }
         }catch(IOException exception){
@@ -193,7 +255,17 @@ public class ImagePullThread extends Thread{
     }
 
     public void addImageToQueue(Bitmap bitmap){
-        imageQueue.add(bitmap);
+        if (bitmap != null){
+            this.bitmap = bitmap;
+        }else{
+            System.out.println("Bitmap is null");
+        }
+
+        try{
+            imageQueue.put(bitmap);
+        }catch(InterruptedException exception){
+            exception.printStackTrace();
+        }
     }
 
 

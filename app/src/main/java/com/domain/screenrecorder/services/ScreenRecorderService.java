@@ -60,6 +60,8 @@ public class ScreenRecorderService extends Service {
 
     private TextRecognizer textRecognition;
 
+    private boolean threadStarted = false;
+
     public ScreenRecorderService() {
         textRecognition = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
         imagePullThread = new ImagePullThread();
@@ -122,8 +124,15 @@ public class ScreenRecorderService extends Service {
                 PixelCopy.request(surface, bitmap[0], copyResult -> {
                     if (copyResult == PixelCopy.SUCCESS){
                         System.out.println("Bitmap loaded successfully!");
-                        Bitmap originalBitmap = bitmap[0];
-                        imagePullThread.addImageToQueue(originalBitmap);
+                        try{
+                            Bitmap originalBitmap = bitmap[0];
+                            imagePullThread.addImageToQueue(originalBitmap);
+                        }catch (Exception exception){
+                            exception.printStackTrace();
+                        }
+
+
+
 //                        bitmap[0] = Bitmap.createBitmap(originalBitmap, 0, 200, WIDTH, HEIGHT - 300);
 //                        InputImage inputImage = InputImage.fromBitmap(bitmap[0], 0);
 //                        textRecognition.process(inputImage)
@@ -181,7 +190,10 @@ public class ScreenRecorderService extends Service {
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         mediaProjection = projectionManager.getMediaProjection(resultCode, data);
         System.out.println("Setting up everything...");
-        imagePullThread.start();
+        if (!threadStarted){
+            imagePullThread.start();
+            threadStarted = true;
+        }
         setupMediaRecorder();
         createVirtualDisplay();
         mediaRecorder.start();
