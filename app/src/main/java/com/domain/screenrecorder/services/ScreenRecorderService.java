@@ -94,7 +94,7 @@ public class ScreenRecorderService extends Service {
                 int gray = (int) (0.299*r + 0.587*g + 0.114*b);
 
                 // If you want pure black/white (threshold)
-                int bw = (gray < 128) ? 0xFF000000 : 0xFFFFFFFF;
+                int bw = (gray < 128) ? 0xFFFFFFFF : 0xFF000000;
 
                 bwBitmap.setPixel(x, y, bw);
             }
@@ -125,7 +125,7 @@ public class ScreenRecorderService extends Service {
     }
 
     private void sendBytes(byte[] bytes){
-        int chunkSize = 512;
+        int chunkSize = 2048;
         int totalChunks = (int)Math.ceil(bytes.length / (double)chunkSize);
         String header = "IMG " + totalChunks + " " + bytes.length + '\n';
         System.out.println("Sending header and data!");
@@ -290,8 +290,8 @@ public class ScreenRecorderService extends Service {
             public void run() {
                 try {
                     socket = new Socket();
-//        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-                    socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+                    socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+                    //socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                     outputStream = socket.getOutputStream();
 
                     try {
