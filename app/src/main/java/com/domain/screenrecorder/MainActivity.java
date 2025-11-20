@@ -50,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
         Button connectButton = findViewById(R.id.connectButton);
         connectButton.setOnClickListener(v -> {
             try{
-                imagePullThread.start();
+//                imagePullThread.start();
             }catch(Exception exception){
                 exception.printStackTrace();
             }

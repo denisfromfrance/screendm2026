@@ -56,18 +56,18 @@ public class ImagePullThread extends Thread{
                 }*/
                 //System.out.println("Queu size: " + imageQueue.size());
 
-                if (this.bitmap != null){
-                    prepareImageAndSend(bitmap, 128, 160);
-                }else{
-                    try {
-                        outputStream.write("EMPTY IMAGE\n".getBytes(StandardCharsets.UTF_8));
-                        outputStream.flush();
-                    }catch(IOException exception){
-                        exception.printStackTrace();
-                    }
-                }
+//                if (this.bitmap != null){
+//                    prepareImageAndSend(bitmap, 128, 160);
+//                }else{
+//                    try {
+//                        outputStream.write("EMPTY IMAGE\n".getBytes(StandardCharsets.UTF_8));
+//                        outputStream.flush();
+//                    }catch(IOException exception){
+//                        exception.printStackTrace();
+//                    }
+//                }
 
-                /*
+
                 try{
                     Bitmap bitmap = imageQueue.take();
                     System.out.println("Image received. now starting to prepare it and send");
@@ -77,12 +77,12 @@ public class ImagePullThread extends Thread{
                         } else {
                             System.out.println("Not connected!");
                         }
-
+                        prepareImageAndSend(bitmap, 128, 160);
                     }
 
                 }catch(InterruptedException e){
                     e.printStackTrace();
-                }*/
+                }
 
                 /*
                 if (imageQueue.size() > 0){
@@ -131,7 +131,8 @@ public class ImagePullThread extends Thread{
 
     public void connectToServer() throws IOException{
         socket = new Socket();
-        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+//        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+        socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
         outputStream = socket.getOutputStream();
     }
 

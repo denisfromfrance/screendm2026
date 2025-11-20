@@ -38,6 +38,13 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 
 public class ScreenRecorderService extends Service {
     private MediaProjection mediaProjection;
@@ -58,13 +65,97 @@ public class ScreenRecorderService extends Service {
 
     ImagePullThread imagePullThread;
 
+    Socket socket;
+    OutputStream outputStream;
+    private BlockingQueue<Bitmap> imageQueue;
+
     private TextRecognizer textRecognition;
 
     private boolean threadStarted = false;
 
+    private Bitmap prepareImageForDisplay(Bitmap original, int targetWidth, int targetHeight) {
+
+        // 2. Resize to match your display (e.g., 96x64 or 50x50)
+        Bitmap resized = Bitmap.createScaledBitmap(original, targetWidth, targetHeight, true);
+
+        // 3. Convert to Black & White
+        Bitmap bwBitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888);
+
+        for (int y = 0; y < targetHeight; y++) {
+            for (int x = 0; x < targetWidth; x++) {
+
+                int color = resized.getPixel(x, y);
+
+                int r = (color >> 16) & 0xFF;
+                int g = (color >> 8) & 0xFF;
+                int b = (color) & 0xFF;
+
+                // Luminance formula
+                int gray = (int) (0.299*r + 0.587*g + 0.114*b);
+
+                // If you want pure black/white (threshold)
+                int bw = (gray < 128) ? 0xFF000000 : 0xFFFFFFFF;
+
+                bwBitmap.setPixel(x, y, bw);
+            }
+        }
+
+        return bwBitmap;
+    }
+
+
+    private byte[] bitmapTo1BitArray(Bitmap bmp) {
+        int width = bmp.getWidth();
+        int height = bmp.getHeight();
+
+        byte[] bytes = new byte[width * height]; // 1 byte per pixel (0 or 1)
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+
+                int pixel = bmp.getPixel(x, y);
+                int r = (pixel >> 16) & 0xFF;
+
+                // Assume black = 1, white = 0
+                bytes[y * width + x] = (byte) (r < 128 ? 1 : 0);
+            }
+        }
+
+        return bytes;
+    }
+
+    private void sendBytes(byte[] bytes){
+        int chunkSize = 512;
+        int totalChunks = (int)Math.ceil(bytes.length / (double)chunkSize);
+        String header = "IMG " + totalChunks + " " + bytes.length + '\n';
+        System.out.println("Sending header and data!");
+        System.out.println("Total Chunks sending " + totalChunks + " of size " + chunkSize);
+        try {
+            outputStream.write(header.getBytes(StandardCharsets.UTF_8));
+            outputStream.flush();
+
+            for (int i = 0; i < totalChunks; i++){
+                int start = i * chunkSize;
+                int length = Math.min(chunkSize, bytes.length - start);
+                outputStream.write(bytes, start, length);
+                System.out.println(Arrays.toString(Arrays.copyOfRange(bytes, 0, 50)));
+                outputStream.flush();
+            }
+        }catch(IOException exception){
+            exception.printStackTrace();
+        }
+    }
+
+    private void prepareImageAndSend(Bitmap bitmap, int width, int height){
+        Bitmap image = prepareImageForDisplay(bitmap, width, height);
+        System.out.println("Image received.");
+        sendBytes(bitmapTo1BitArray(image));
+    }
+
     public ScreenRecorderService() {
         textRecognition = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
-        imagePullThread = new ImagePullThread();
+        imageQueue = new LinkedBlockingDeque<>();
+//        imagePullThread = new ImagePullThread();
     }
 
     private void setupMediaRecorder(){
@@ -126,7 +217,18 @@ public class ScreenRecorderService extends Service {
                         System.out.println("Bitmap loaded successfully!");
                         try{
                             Bitmap originalBitmap = bitmap[0];
-                            imagePullThread.addImageToQueue(originalBitmap);
+                            if (threadStarted) {
+                                System.out.println("Sending image...");
+                                Thread thread = new Thread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        prepareImageAndSend(originalBitmap, 128, 160);
+                                    }
+                                });
+                                thread.start();
+                                thread.join();
+                            }
+//                            imagePullThread.addImageToQueue(originalBitmap);
                         }catch (Exception exception){
                             exception.printStackTrace();
                         }
@@ -182,6 +284,31 @@ public class ScreenRecorderService extends Service {
         }
     }
 
+    public void connectToServer(){
+        Thread networkThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    socket = new Socket();
+//        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+                    socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+                    outputStream = socket.getOutputStream();
+
+                    try {
+                        outputStream.write("CONNECTED!\n".getBytes(StandardCharsets.UTF_8));
+                        outputStream.flush();
+                    }catch(IOException exception){
+                        exception.printStackTrace();
+                    }
+
+                } catch (IOException exception) {
+                    exception.printStackTrace();
+                }
+            }
+        });
+        networkThread.start();
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         createNotification();
@@ -191,7 +318,8 @@ public class ScreenRecorderService extends Service {
         mediaProjection = projectionManager.getMediaProjection(resultCode, data);
         System.out.println("Setting up everything...");
         if (!threadStarted){
-            imagePullThread.start();
+            connectToServer();
+//            imagePullThread.start();
             threadStarted = true;
         }
         setupMediaRecorder();
