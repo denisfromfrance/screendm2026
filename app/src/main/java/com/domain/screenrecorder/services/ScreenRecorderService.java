@@ -8,6 +8,8 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
@@ -38,6 +40,7 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -60,6 +63,8 @@ public class ScreenRecorderService extends Service {
     private Surface captureSurface;
     private VirtualDisplay captureVirtualDisplay;
 
+    Bitmap testBitmap;
+
     Handler handler;
     Runnable captureRunnable;
 
@@ -73,16 +78,60 @@ public class ScreenRecorderService extends Service {
 
     private boolean threadStarted = false;
 
+    public Bitmap zoomFromTopCenterFixedSize(Bitmap original, float scale) {
+
+        int width = original.getWidth();
+        int height = original.getHeight();
+
+        Matrix matrix = new Matrix();
+        matrix.postScale(scale, scale, width / 2f, 0f);
+
+        // Scaled bitmap (larger)
+        Bitmap scaled = Bitmap.createBitmap(original, 0, 0, width, height, matrix, true);
+
+        // Crop center top area of scaled bitmap to original size
+        int newW = scaled.getWidth();
+        int newH = scaled.getHeight();
+
+        int x = (newW - width) / 2;
+        int y = 0;   // keep top fixed
+
+        Bitmap finalBmp = Bitmap.createBitmap(scaled, x, y, width, height);
+
+        return finalBmp;
+    }
+
     private Bitmap prepareImageForDisplay(Bitmap original, int targetWidth, int targetHeight) {
 
         // 2. Resize to match your display (e.g., 96x64 or 50x50)
-        Bitmap resized = Bitmap.createScaledBitmap(original, targetWidth, targetHeight, true);
+        int originalWidth = original.getWidth();
+        int originalHeight = original.getHeight();
+
+        float scaleRatio = originalHeight / originalWidth;
+
+        int newWidth = targetWidth;
+        int newHeight = (int)(targetWidth * scaleRatio);
+
+        Bitmap resized = Bitmap.createScaledBitmap(original, newWidth, newHeight, true);
+
+        int extraHeight = newHeight - targetHeight;
+
+        int startY = 0;
+        if (extraHeight > 0){
+            startY = (int)(extraHeight / 2);
+            newHeight = targetHeight;
+        }
+
+        //Bitmap resized = Bitmap.createScaledBitmap(original, newWidth, newHeight, true);
+        resized = Bitmap.createBitmap(resized, 0, startY, newWidth, newHeight);
+
+        resized = zoomFromTopCenterFixedSize(resized, 1.4f);
 
         // 3. Convert to Black & White
-        Bitmap bwBitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888);
+        Bitmap bwBitmap = Bitmap.createBitmap(newWidth, newHeight, Bitmap.Config.ARGB_8888);
 
-        for (int y = 0; y < targetHeight; y++) {
-            for (int x = 0; x < targetWidth; x++) {
+        for (int y = 0; y < newHeight; y++) {
+            for (int x = 0; x < newWidth; x++) {
 
                 int color = resized.getPixel(x, y);
 
@@ -222,7 +271,9 @@ public class ScreenRecorderService extends Service {
                                 Thread thread = new Thread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        prepareImageAndSend(originalBitmap, 128, 160);
+                                        prepareImageAndSend(originalBitmap, 240, 320);
+                                        //prepareImageAndSend(testBitmap, 240, 320);
+
                                     }
                                 });
                                 thread.start();
@@ -232,8 +283,6 @@ public class ScreenRecorderService extends Service {
                         }catch (Exception exception){
                             exception.printStackTrace();
                         }
-
-
 
 //                        bitmap[0] = Bitmap.createBitmap(originalBitmap, 0, 200, WIDTH, HEIGHT - 300);
 //                        InputImage inputImage = InputImage.fromBitmap(bitmap[0], 0);
@@ -317,6 +366,8 @@ public class ScreenRecorderService extends Service {
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         mediaProjection = projectionManager.getMediaProjection(resultCode, data);
         System.out.println("Setting up everything...");
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.testdrawing);
+        testBitmap = BitmapFactory.decodeStream(is);
         if (!threadStarted){
             connectToServer();
 //            imagePullThread.start();

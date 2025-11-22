@@ -47,15 +47,6 @@ public class MainActivity extends AppCompatActivity {
 
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
-        Button connectButton = findViewById(R.id.connectButton);
-        connectButton.setOnClickListener(v -> {
-            try{
-//                imagePullThread.start();
-            }catch(Exception exception){
-                exception.printStackTrace();
-            }
-        });
-
         Button startButton = findViewById(R.id.startButton);
         startButton.setOnClickListener(v -> {
             Intent intent = projectionManager.createScreenCaptureIntent();
