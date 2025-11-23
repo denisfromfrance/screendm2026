@@ -28,6 +28,7 @@ import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 
 import com.domain.screenrecorder.R;
+import com.domain.screenrecorder.states.Components;
 import com.domain.screenrecorder.threads.ImagePullThread;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -101,6 +102,40 @@ public class ScreenRecorderService extends Service {
         return finalBmp;
     }
 
+    private Bitmap collapseBlankLines(Bitmap originalImage, int targetWidth, int targetHeight){
+        Bitmap collapesedImage = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888);
+        boolean shouldProccess = originalImage.getHeight() > targetHeight;
+        int currentHeight = originalImage.getHeight();
+        if (shouldProccess){
+            int[] pixels = new int[targetWidth];
+            for (int y = 0; y < originalImage.getHeight(); y++){
+                boolean foundBlack = false;
+                boolean foundWhite = false;
+                boolean keeLine = false;
+                for (int x = 0; x < originalImage.getWidth(); x++){
+                    int pixel = originalImage.getPixel(x, y);
+                    if (pixel == 0xFFFFFFFF){
+                        foundWhite = true;
+                    }else if(pixel == 0x00000000){
+                        foundBlack = true;
+                    }
+                    if (foundWhite && foundBlack){
+                        originalImage.getPixels(pixels, 0, targetWidth, 0, y, targetWidth, 1);
+                        collapesedImage.setPixels(pixels, 0, targetWidth, 0, y, targetWidth, 1);
+                        break;
+                    }else{
+                        currentHeight -= 1;
+                        if (currentHeight <= targetHeight){
+                            originalImage.getPixels(pixels, 0, targetWidth, 0, y, targetWidth, 1);
+                            collapesedImage.setPixels(pixels, 0, targetWidth, 0, y, targetWidth, 1);
+                        }
+                    }
+                }
+            }
+        }
+        return collapesedImage;
+    }
+
     private Bitmap prepareImageForDisplay(Bitmap original, int targetWidth, int targetHeight) {
 
         // 2. Resize to match your display (e.g., 96x64 or 50x50)
@@ -116,16 +151,15 @@ public class ScreenRecorderService extends Service {
 
         int extraHeight = newHeight - targetHeight;
 
-        int startY = 0;
-        if (extraHeight > 0){
-            startY = (int)(extraHeight / 2);
-            newHeight = targetHeight;
-        }
+        int startY = 100;
+        //if (extraHeight > 0){
+            //startY = (int)(extraHeight / 2);
+            //newHeight = targetHeight;
+        //}
 
         //Bitmap resized = Bitmap.createScaledBitmap(original, newWidth, newHeight, true);
         resized = Bitmap.createBitmap(resized, 0, startY, newWidth, newHeight);
-
-        resized = zoomFromTopCenterFixedSize(resized, 1.4f);
+        //resized = zoomFromTopCenterFixedSize(resized, 1.5f);
 
         // 3. Convert to Black & White
         Bitmap bwBitmap = Bitmap.createBitmap(newWidth, newHeight, Bitmap.Config.ARGB_8888);
@@ -149,6 +183,7 @@ public class ScreenRecorderService extends Service {
             }
         }
 
+        //bwBitmap = collapseBlankLines(bwBitmap, targetWidth, newHeight);
         return bwBitmap;
     }
 
@@ -179,19 +214,26 @@ public class ScreenRecorderService extends Service {
         String header = "IMG " + totalChunks + " " + bytes.length + '\n';
         System.out.println("Sending header and data!");
         System.out.println("Total Chunks sending " + totalChunks + " of size " + chunkSize);
-        try {
-            outputStream.write(header.getBytes(StandardCharsets.UTF_8));
-            outputStream.flush();
-
-            for (int i = 0; i < totalChunks; i++){
-                int start = i * chunkSize;
-                int length = Math.min(chunkSize, bytes.length - start);
-                outputStream.write(bytes, start, length);
-                System.out.println(Arrays.toString(Arrays.copyOfRange(bytes, 0, 50)));
+        if (outputStream != null){
+            try {
+                outputStream.write(header.getBytes(StandardCharsets.UTF_8));
                 outputStream.flush();
+
+                for (int i = 0; i < totalChunks; i++){
+                    int start = i * chunkSize;
+                    int length = Math.min(chunkSize, bytes.length - start);
+                    outputStream.write(bytes, start, length);
+                    System.out.println(Arrays.toString(Arrays.copyOfRange(bytes, 0, 50)));
+                    outputStream.flush();
+                }
+            }catch(IOException exception){
+                exception.printStackTrace();
+                try{
+                    outputStream.close();
+                }catch(IOException e){
+                    e.printStackTrace();
+                }
             }
-        }catch(IOException exception){
-            exception.printStackTrace();
         }
     }
 
@@ -271,8 +313,9 @@ public class ScreenRecorderService extends Service {
                                 Thread thread = new Thread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        prepareImageAndSend(originalBitmap, 240, 320);
+                                        //prepareImageAndSend(originalBitmap, 240, 320);
                                         //prepareImageAndSend(testBitmap, 240, 320);
+                                        prepareImageAndSend(testBitmap, 240, 320);
 
                                     }
                                 });
@@ -343,6 +386,8 @@ public class ScreenRecorderService extends Service {
                     //socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                     outputStream = socket.getOutputStream();
 
+                    Components.setConnectionStatus(1);
+
                     try {
                         outputStream.write("CONNECTED!\n".getBytes(StandardCharsets.UTF_8));
                         outputStream.flush();
@@ -366,7 +411,7 @@ public class ScreenRecorderService extends Service {
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         mediaProjection = projectionManager.getMediaProjection(resultCode, data);
         System.out.println("Setting up everything...");
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.testdrawing);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.pagetotal);
         testBitmap = BitmapFactory.decodeStream(is);
         if (!threadStarted){
             connectToServer();
@@ -410,7 +455,15 @@ public class ScreenRecorderService extends Service {
             mediaProjection.stop();
         }
 
-        imagePullThread.terminateConnection();
+        if (outputStream != null){
+            try{
+                outputStream.close();
+            }catch(IOException exception){
+                exception.printStackTrace();
+            }
+        }
+
+        //imagePullThread.terminateConnection();
 
         stopForeground(true);
     }
