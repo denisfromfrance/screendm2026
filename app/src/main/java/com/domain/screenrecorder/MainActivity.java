@@ -20,6 +20,9 @@ import com.domain.screenrecorder.services.ScreenRecorderService;
 import com.domain.screenrecorder.states.Components;
 import com.domain.screenrecorder.threads.ImagePullThread;
 
+import org.opencv.*;
+import org.opencv.android.OpenCVLoader;
+
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_CODE = 1000;
@@ -38,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
         connectionStatusIcon = findViewById(R.id.connectionstatusicon);
 
         imagePullThread = new ImagePullThread();
+        OpenCVLoader.initLocal();
 
         Components.setApplicationContext(getApplicationContext());
         Components.setConnectionStatus(connectionStatus);
