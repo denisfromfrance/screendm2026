@@ -548,9 +548,9 @@ public class ScreenRecorderService extends Service {
                                 Thread thread = new Thread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        //prepareImageAndSend(originalBitmap, 240, 320);
+                                        prepareImageAndSend(originalBitmap, 240, 320);
                                         //prepareImageAndSend(testBitmap, 240, 320);
-                                        prepareImageAndSend(testBitmap, 240, 320);
+                                        //prepareImageAndSend(testBitmap, 240, 320);
 
                                     }
                                 });
@@ -617,8 +617,8 @@ public class ScreenRecorderService extends Service {
             public void run() {
                 try {
                     socket = new Socket();
-//                    socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-                    socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+                    socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+                    //socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                     outputStream = socket.getOutputStream();
 
                     Components.setConnectionStatus(1);
