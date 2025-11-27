@@ -5,7 +5,7 @@ import android.media.MediaCodec;
 import android.os.HandlerThread;
 
 import com.domain.screenrecorder.states.Components;
-import com.google.mlkit.vision.common.InputImage;
+//import com.google.mlkit.vision.common.InputImage;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

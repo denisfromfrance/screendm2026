@@ -38,15 +38,16 @@ import androidx.core.app.NotificationCompat;
 import com.domain.screenrecorder.R;
 import com.domain.screenrecorder.states.Components;
 import com.domain.screenrecorder.threads.ImagePullThread;
-import com.google.android.gms.common.util.Hex;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.mlkit.vision.common.InputImage;
-import com.google.mlkit.vision.text.Text;
-import com.google.mlkit.vision.text.TextRecognition;
-import com.google.mlkit.vision.text.TextRecognizer;
-import com.google.mlkit.vision.text.TextRecognizerOptionsInterface;
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
+import com.domain.screenrecorder.utils.DigitClassifier;
+//import com.google.android.gms.common.util.Hex;
+//import com.google.android.gms.tasks.OnFailureListener;
+//import com.google.android.gms.tasks.OnSuccessListener;
+//import com.google.mlkit.vision.common.InputImage;
+//import com.google.mlkit.vision.text.Text;
+//import com.google.mlkit.vision.text.TextRecognition;
+//import com.google.mlkit.vision.text.TextRecognizer;
+//import com.google.mlkit.vision.text.TextRecognizerOptionsInterface;
+//import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 
 import org.opencv.android.Utils;
 import org.opencv.core.Core;
@@ -56,6 +57,7 @@ import org.opencv.core.MatOfPoint;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.ml.KNearest;
 
 import java.io.File;
 import java.io.IOException;
@@ -78,6 +80,8 @@ public class ScreenRecorderService extends Service {
     private MediaRecorder mediaRecorder;
     private VirtualDisplay virtualDisplay;
 
+    private DigitClassifier digitClassifier;
+
     private static final int WIDTH = 1080;
     private static final int HEIGHT = 1920;
     private static final int DPI = 320;
@@ -93,11 +97,13 @@ public class ScreenRecorderService extends Service {
 
     ImagePullThread imagePullThread;
 
+//    InputImage image;
+
     Socket socket;
     OutputStream outputStream;
     private BlockingQueue<Bitmap> imageQueue;
 
-    private TextRecognizer textRecognition;
+//    private TextRecognizer textRecognition;
 
     private boolean threadStarted = false;
 
@@ -129,96 +135,6 @@ public class ScreenRecorderService extends Service {
         int newHeight = (int)(width * scaleRatio);
         return scaleSmooth(image, width, newHeight);
     }
-
-    private Bitmap collapseBlankLines(Bitmap originalImage, int targetWidth, int targetHeight){
-        Bitmap collapsedImage = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888);
-        int currentHeight = originalImage.getHeight();
-        boolean shouldProccess = currentHeight > targetHeight;
-        int newImagePixelPosY = 0;
-
-        int mainColorToCheck = -1;
-
-        int centerX = originalImage.getWidth() / 2;
-        int inspectLimitRange = 50;
-        int startX = centerX - inspectLimitRange;
-        int endX = centerX + inspectLimitRange;
-
-
-        if (shouldProccess){
-            int[] pixels = new int[targetWidth];
-            for (int y = 0; y < originalImage.getHeight(); y++){
-                boolean foundBlack = false;
-                boolean foundWhite = false;
-
-                for (int x = 0; x < originalImage.getWidth(); x++){
-                    int pixel = originalImage.getPixel(x, y);
-
-                    if (pixel == 0xFFFFFFFF){
-                        foundWhite = true;
-                    }else if(pixel == 0xFF000000){
-                        foundBlack = true;
-                    }
-
-                    if (foundWhite && foundBlack) {
-                        break;
-                    }
-                }
-
-                if (newImagePixelPosY < targetHeight && (foundWhite && foundBlack)){
-                    originalImage.getPixels(pixels, 0, targetWidth, 0, y, targetWidth, 1);
-                    collapsedImage.setPixels(pixels, 0, targetWidth, 0, newImagePixelPosY, targetWidth, 1);
-                    System.out.println(Integer.toHexString(mainColorToCheck));
-                    if (mainColorToCheck == -1){
-                        mainColorToCheck = pixels[0];
-                    }else{
-                        for (int i = 0; i < centerX - inspectLimitRange; i++){
-                            int leftPixel = pixels[i];
-                            int rightPixel = pixels[(centerX + inspectLimitRange) + i];
-
-                            if (leftPixel != mainColorToCheck) {
-                                if (i < startX) {
-                                    startX = i;
-                                }
-                            }
-
-                            if (rightPixel != mainColorToCheck){
-                                if (endX < (centerX + inspectLimitRange) + i){
-                                    endX = (centerX + inspectLimitRange) + i;
-                                }
-                            }
-                        }
-                    }
-
-                    if (mainColorToCheck == 0xFF000000){
-                        System.out.println("Main color is black");
-                    }else{
-                        System.out.println("Main color is white");
-                    }
-
-                    newImagePixelPosY++;
-                }
-            }
-        }
-
-        int posY = (targetHeight / 2) - (newImagePixelPosY / 2);
-        int contentWidth = endX - startX;
-        int posX = (contentWidth / 2) - (targetWidth / 2);
-        Bitmap croppedArea = Bitmap.createBitmap(collapsedImage, startX, 0, endX - startX, newImagePixelPosY);
-        croppedArea = scaleToFitWidth(targetWidth, croppedArea);
-
-        System.out.println("New Y position of the image to place in the center: " + posY);
-        System.out.println("Height of the cropped image portion: " + croppedArea.getHeight());
-
-        Canvas originalCanvas = new Canvas(collapsedImage);
-        Paint paint = new Paint();
-        paint.setColor(Color.BLACK);
-        originalCanvas.drawRect(new Rect(0, 0, targetWidth, targetHeight), paint);
-        originalCanvas.drawBitmap(croppedArea, 0, (int)(targetHeight / 2) - ((int)(croppedArea.getHeight() / 2)), null);
-        paint.setColor(Color.GREEN);
-//        originalCanvas.drawLine(startX, 0, startX, collapsedImage.getHeight(), paint);
-//        originalCanvas.drawLine(endX, 0, endX, collapsedImage.getHeight(), paint);
-        return collapsedImage;
-    }
     
     private Bitmap scaleSmooth(Bitmap original, int newWidth, int newHeight){
         Bitmap scaled = Bitmap.createBitmap(newWidth, newHeight, Bitmap.Config.ARGB_8888);
@@ -235,34 +151,198 @@ public class ScreenRecorderService extends Service {
         return scaled;
     }
 
-    private Bitmap getBlackAndWhiteImage(Bitmap original){
-        int width = original.getWidth();
-        int height = original.getHeight();
+    private Mat convertToBlackAndWhite(Mat src){
+        Mat gray = new Mat();
+        Imgproc.cvtColor(src, gray, Imgproc.COLOR_BGR2GRAY);
 
-        Bitmap newBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Mat bw = new Mat();
+        Imgproc.threshold(gray, bw, 0, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
+        org.opencv.core.Rect center = new org.opencv.core.Rect(
+                src.width() / 4,
+                src.height() / 4,
+                src.width() / 2,
+                src.height() / 2);
 
-                int color = original.getPixel(x, y);
+        Mat centerMat = new Mat(bw, center);
 
-                int r = (color >> 16) & 0xFF;
-                int g = (color >> 8) & 0xFF;
-                int b = (color) & 0xFF;
-
-                // Luminance formula
-                int gray = (int) (0.299*r + 0.587*g + 0.114*b);
-
-                int grayPixel = 0xFF000000 | (gray << 16) | (gray << 8) | (gray);
-
-                // If you want pure black/white (threshold)
-//                int bw = (gray < 128) ? 0xFF000000 : 0xFFFFFFFF;
-                int bw = (gray < 128) ? 0xFF000000 : grayPixel;
-
-                newBitmap.setPixel(x, y, bw);
-            }
+        double meanVal = Core.mean(centerMat).val[0];
+        if (meanVal > 127){
+            Core.bitwise_not(bw, bw);
         }
-        return newBitmap;
+        return bw;
+    }
+
+    private List<MatOfPoint> getContours(Mat blackAndWhiteMat, boolean isChar){
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(isChar ? 10 : 50, 5));
+        Mat dilated = new Mat();
+        Imgproc.dilate(blackAndWhiteMat, dilated, kernel);
+
+        List<MatOfPoint> contours = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Imgproc.findContours(dilated, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        Bitmap output = Bitmap.createBitmap(dilated.cols(), dilated.rows(), Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(dilated, output);
+//        saveImageToPublicDirectory(getApplicationContext(), output, String.format("Image processed using OpenCV%s.jpg", String.valueOf(new Date().getTime())));
+        return contours;
+    }
+
+    public List<org.opencv.core.Rect> getBoundingBoxes(List<MatOfPoint> contours){
+        List<org.opencv.core.Rect> boundingBoxes = new ArrayList<>();
+        for (MatOfPoint contour : contours) {
+            boundingBoxes.add(Imgproc.boundingRect(contour));
+        }
+        return boundingBoxes;
+    }
+
+    private void detectChar(Bitmap input){
+//        image = InputImage.fromBitmap(input, 0);
+//        textRecognition.process(image)
+//                .addOnSuccessListener(visionText -> {
+//                    String resultText = visionText.getText();
+//                    System.out.println("MLKIT: Detected text: " + resultText);
+//
+////                    for (Text.TextBlock block : visionText.getTextBlocks()) {
+////                        for (Text.Line line : block.getLines()) {
+////                            String lineText = line.getText();
+////                            System.out.println("MLKIT: Line: " + lineText);
+////                        }
+////                    }
+//                })
+//                .addOnFailureListener(e -> {
+//                    e.printStackTrace();
+//                });
+    }
+
+    private void saveImage(Mat mat){
+        Bitmap croppedPortion = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(mat, croppedPortion);
+        saveImageToPublicDirectory(getApplicationContext(), croppedPortion, String.format(
+                "Cropped Digit-%s.jpg",
+                String.valueOf(new Date().getTime())));
+    }
+
+    private int resizeToFixedSize(int width, int height, Mat inputMat){
+        int imageWidth = inputMat.cols();
+        int imageHeight = inputMat.rows();
+
+//        System.out.println(String.format("Size before resizing: %dx%d", imageWidth, imageHeight));
+
+        double aspectRatio = 0;
+
+        if (imageWidth > width) {
+            aspectRatio = width / (double) imageWidth;
+            imageWidth = width;
+            imageHeight = (int) (imageWidth * aspectRatio);
+        }
+
+        if (imageHeight > height) {
+            aspectRatio = height / (double) imageHeight;
+            imageWidth = (int) (imageWidth * aspectRatio);
+        }
+
+        Mat resized = new Mat((int) imageHeight, imageWidth, inputMat.type());
+        Size size = new Size(imageWidth, imageHeight);
+        Imgproc.resize(inputMat, resized, size, 0, 0, Imgproc.INTER_LANCZOS4);
+
+//        System.out.println(String.format(
+//                "Size after resizing: %dx%d = %dx%d",
+//                imageWidth, imageHeight, resized.cols(), resized.rows()));
+
+        Mat newImage = new Mat(new Size(width, height), inputMat.type());
+
+        int x = 14 - (imageWidth / 2);
+        int y = 14 - (imageHeight / 2);
+
+//        System.out.println("Pos X: " + x);
+//        System.out.println("Pos Y: " + y);
+
+        org.opencv.core.Rect roi = new org.opencv.core.Rect(x, y, imageWidth, imageHeight);
+        Mat destinationArea = newImage.submat(roi);
+        resized.copyTo(destinationArea);
+
+        Mat invertedImage = new Mat(new Size(imageWidth, imageHeight), newImage.type());
+        Core.bitwise_not(newImage, invertedImage);
+//        saveImage(invertedImage);
+
+        int classifiedDigit = digitClassifier.classify(invertedImage);
+        System.out.println("Classified Digit: " + classifiedDigit);
+        return classifiedDigit;
+    }
+
+    private String extractChar(Mat input){
+        List<MatOfPoint> contours = getContours(input, true);
+        List<org.opencv.core.Rect> boundingBoxes = getBoundingBoxes(contours);
+
+        Mat mat;
+        Bitmap croppedPortion;
+        Mat resized;
+        Size size;
+        int recommendedSize = 40;
+        int height = 0;
+        int width = 0;
+        double aspectRatio = 0;
+
+        StringBuilder stringBuilder = new StringBuilder();
+
+        for (org.opencv.core.Rect boundingBox : boundingBoxes) {
+            mat = input.submat(boundingBox);
+            width = mat.cols();
+            height = mat.rows();
+
+            if (width <= recommendedSize) {
+                aspectRatio = recommendedSize / (double) width;
+                width = recommendedSize;
+                height = (int) (height * aspectRatio);
+            }
+
+            if (height <= recommendedSize) {
+                aspectRatio = recommendedSize / (double) height;
+                width = (int) (width * aspectRatio);
+            }
+
+            croppedPortion = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            resized = new Mat((int) height, width, CvType.CV_8UC3);
+            size = new Size(width, height);
+            Imgproc.resize(mat, resized, size, 0, 0, Imgproc.INTER_LANCZOS4);
+            Utils.matToBitmap(resized, croppedPortion);
+
+            int classifiedNumber = resizeToFixedSize(28, 28, resized);
+            stringBuilder.append(classifiedNumber);
+        }
+        return stringBuilder.toString();
+    }
+
+    private void extractLines(Bitmap bitmap){
+        Mat src = new Mat();
+        Utils.bitmapToMat(bitmap, src);
+
+        Mat bw = convertToBlackAndWhite(src);
+        List<MatOfPoint> contours = getContours(bw, false);
+        List<org.opencv.core.Rect> boundingBoxes = getBoundingBoxes(contours);
+
+        Mat mat = new Mat();
+//        InputImage image;
+        Bitmap croppedPortion;
+        Mat resized;
+        Size size;
+        int targetHeight = 40;
+        int newWidth = 0;
+        double aspectRatio = 0;
+
+        ArrayList<Integer> numberList = new ArrayList<>();
+        int total = 0;
+        for (org.opencv.core.Rect boundingBox : boundingBoxes){
+            mat = bw.submat(boundingBox);
+            String number = extractChar(mat);
+            int n = Integer.parseInt(number);
+            numberList.add(n);
+            total += n;
+        }
+
+        System.out.println("Numbers: " + Arrays.toString(numberList.toArray()));
+        System.out.println("Total: " + total);
     }
 
     private Bitmap processImageAndSave(Bitmap original, int targetWidth, int targetHeight){
@@ -274,24 +354,16 @@ public class ScreenRecorderService extends Service {
 //        org.opencv.core.Rect cropRect = new org.opencv.core.Rect(0, topCropOffset, src.cols(), src.rows() - topCropOffset - bottomCropOffset);
 //        src = new Mat(src, cropRect);
 
-        Mat gray = new Mat();
-        Imgproc.cvtColor(src, gray, Imgproc.COLOR_BGR2GRAY);
+        Mat bw = convertToBlackAndWhite(src);
 
-        Mat bw = new Mat();
-        Imgproc.threshold(gray, bw, 0, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
 
-//        double meanVal = Core.mean(bw).val[0];
-//        if (meanVal > 127){
-//            Core.bitwise_not(bw, bw);
-//        }
-//
 //        Mat points = new Mat();
 //        Core.findNonZero(bw, points);
 //        org.opencv.core.Rect boundingBox = Imgproc.boundingRect(points);
 //
 //        Mat cropped = new Mat(bw, boundingBox);
 
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(50, 50));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(120, 85));
         Mat dilated = new Mat();
         Imgproc.dilate(bw, dilated, kernel);
 
@@ -301,88 +373,62 @@ public class ScreenRecorderService extends Service {
 
         System.out.println("Contours Count: " + contours.size());
 
+        MatOfPoint contour = contours.get(0);
+
+        int contourIndex = 0;
+        int centerY = dilated.height() / 2;
+        int distance = 0;
+
         if (contours.size() == 3){
-            contours.remove(2);
-            contours.remove(0);
+            contour = contours.get(1);
+//            for (MatOfPoint point : contours) {
+//                org.opencv.core.Rect boundingBox = Imgproc.boundingRect(point);
+//                int distanceFromCenter = boundingBox.y;
+//                if (boundingBox.y + boundingBox.height > centerY) {
+//                    distanceFromCenter = dilated.height() - boundingBox.y + boundingBox.height;
+//                }
+//                if (distanceFromCenter > distance) {
+//                    distance = distanceFromCenter;
+//                    contour = point;
+//                }
+//            }
         }
 
         Mat output = Mat.zeros(bw.size(), CvType.CV_8UC3);
         Imgproc.drawContours(output, contours, -1, new Scalar(0, 255, 0), 2);
 
-
-        org.opencv.core.Rect croppedText = Imgproc.boundingRect(contours.get(0));
+        org.opencv.core.Rect croppedText = Imgproc.boundingRect(contour);
         Mat cropped = new Mat(bw, croppedText);
 
-        Mat resized = new Mat();
-        Size size = new Size(targetWidth, targetHeight);
-        Imgproc.resize(cropped, resized, size);
+        double aspectRatio = targetWidth / (double)cropped.cols();
+        double newHeight = cropped.rows() * aspectRatio;
 
-        Bitmap bitmap = Bitmap.createBitmap(resized.width(), resized.height(), Bitmap.Config.ARGB_8888);
-        Utils.matToBitmap(resized, bitmap);
-//        saveImageToPublicDirectory(getApplicationContext(), bitmap, String.format("Image processed using OpenCV%s.jpg", String.valueOf(new Date().getTime())));
+//        System.out.println("Aspect ratio: " + aspectRatio);
+//        System.out.println("New Width: " + targetWidth);
+//        System.out.println("New Height: " + newHeight);
+//        System.out.println("Cropped Cols: " + cropped.cols());
+//        System.out.println("Cropped Rows: " + cropped.rows());
+
+        int newPosY = (int)((targetHeight / 2) - (newHeight / 2));
+
+        Mat resized = new Mat((int)newHeight, targetWidth, CvType.CV_8UC3);
+        Size size = new Size(targetWidth, newHeight);
+        Imgproc.resize(cropped, resized, size, 0, 0, Imgproc.INTER_LANCZOS4);
+
+        Mat canvas = Mat.zeros(targetHeight, targetWidth, resized.type());
+        org.opencv.core.Rect roi = new org.opencv.core.Rect(0, newPosY, resized.cols(), resized.rows());
+        Mat targetArea = canvas.submat(roi);
+        resized.copyTo(targetArea);
+
+        Bitmap bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(canvas, bitmap);
+
+        extractLines(bitmap);
         return bitmap;
     }
 
     private Bitmap prepareImageForDisplay(Bitmap original, int targetWidth, int targetHeight) {
         // 2. Resize to match your display (e.g., 96x64 or 50x50)
-        int originalWidth = original.getWidth();
-        int originalHeight = original.getHeight();
-
-        //        float scaleRatio = originalHeight / originalWidth;
-//
-//        int newWidth = targetWidth;
-//        int newHeight = (int)(targetWidth * scaleRatio);
-//
-//        System.out.println("Height when fit to display width: " + newHeight);
-////        System.out.println("##################################");
-////        Bitmap blackAndWhiteHDImage = getBlackAndWhiteImage(original);
-////        blackAndWhiteHDImage = collapseBlankLines(blackAndWhiteHDImage, blackAndWhiteHDImage.getWidth(), blackAndWhiteHDImage.getHeight());
-////        saveImageToPublicDirectory(getApplicationContext(), blackAndWhiteHDImage, String.format("New Output Image From the App-%s.jpg", String.valueOf(new Date().getTime())));
-////        System.out.println("##################################");
-//
-////        Bitmap resized = Bitmap.createScaledBitmap(original, newWidth, newHeight, true);
-//        Bitmap resized = scaleSmooth(original, newWidth, newHeight);
-//
-//        int startY = 100;
-//        //if (extraHeight > 0){
-//            //startY = (int)(extraHeight / 2);
-//            //newHeight = targetHeight;
-//        //}
-//
-//        System.out.println("Height after removing a portion from the top: " + (newHeight - startY));
-//        //Bitmap resized = Bitmap.createScaledBitmap(original, newWidth, newHeight, true);
-//        resized = Bitmap.createBitmap(resized, 0, startY, newWidth, newHeight - startY);
-//        System.out.println("Height for confirmation: " + resized.getHeight());
-//        //resized = zoomFromTopCenterFixedSize(resized, 1.5f);
-//
-//        // 3. Convert to Black & White
-//        newHeight -= 50;
-//        Bitmap bwBitmap = Bitmap.createBitmap(newWidth, newHeight - startY, Bitmap.Config.ARGB_8888);
-//
-//        for (int y = 0; y < newHeight - startY; y++) {
-//            for (int x = 0; x < newWidth; x++) {
-//
-//                int color = resized.getPixel(x, y);
-//
-//                int r = (color >> 16) & 0xFF;
-//                int g = (color >> 8) & 0xFF;
-//                int b = (color) & 0xFF;
-//
-//                // Luminance formula
-//                int gray = (int) (0.299*r + 0.587*g + 0.114*b);
-//
-//                int grayPixel = 0xFF000000 | (gray << 16) | (gray << 8) | (gray);
-//
-//                // If you want pure black/white (threshold)
-//                int bw = (gray < 128) ? 0xFF000000 : 0xFFFFFFFF;
-////                int bw = (gray < 128) ? 0xFF000000 : grayPixel;
-//                bwBitmap.setPixel(x, y, bw);
-//            }
-//        }
-//
-//        bwBitmap = collapseBlankLines(bwBitmap, targetWidth, targetHeight);
-//
-////        saveImageToPublicDirectory(getApplicationContext(), bwBitmap, String.format("Output Image From the App-%s.jpg", String.valueOf(new Date().getTime())));
         return processImageAndSave(original, targetWidth, targetHeight);
     }
 
@@ -442,7 +488,7 @@ public class ScreenRecorderService extends Service {
     }
 
     public ScreenRecorderService() {
-        textRecognition = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+//        textRecognition = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
         imageQueue = new LinkedBlockingDeque<>();
 //        imagePullThread = new ImagePullThread();
     }
@@ -550,6 +596,7 @@ public class ScreenRecorderService extends Service {
                                     public void run() {
                                         prepareImageAndSend(originalBitmap, 240, 320);
                                         //prepareImageAndSend(testBitmap, 240, 320);
+//                                        prepareImageAndSend(testBitmap, 240, 320);
                                         //prepareImageAndSend(testBitmap, 240, 320);
 
                                     }
@@ -645,7 +692,12 @@ public class ScreenRecorderService extends Service {
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         mediaProjection = projectionManager.getMediaProjection(resultCode, data);
         System.out.println("Setting up everything...");
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.testdrawing4lines);
+        try {
+            digitClassifier = new DigitClassifier(getApplicationContext());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.examplenumbers);
         testBitmap = BitmapFactory.decodeStream(is);
         if (!threadStarted){
             connectToServer();
