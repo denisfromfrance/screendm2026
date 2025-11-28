@@ -365,9 +365,11 @@ public class ScreenRecorderService extends Service {
 //
 //        Mat cropped = new Mat(bw, boundingBox);
 
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(130, 100));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(150, 100));
         Mat dilated = new Mat();
         Imgproc.dilate(bw, dilated, kernel);
+
+//        saveImage(dilated);
 
         List<MatOfPoint> contours = new ArrayList<>();
         Mat hierarchy = new Mat();
@@ -498,6 +500,7 @@ public class ScreenRecorderService extends Service {
 
     private void prepareImageAndSend(Bitmap bitmap, int width, int height){
         Bitmap image = prepareImageForDisplay(bitmap, width, height);
+        saveImageToPublicDirectory(getApplicationContext(), image, "Debugging Image.jpg");
         System.out.println("Image received.");
         sendBytes(bitmapTo1BitArray(image));
     }
@@ -621,7 +624,8 @@ public class ScreenRecorderService extends Service {
                                 });*/
 
                                 executorService.submit(() -> {
-                                    prepareImageAndSend(originalBitmap, 240, 320);
+                                    prepareImageAndSend(testBitmap, 240, 320);
+//                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                                 //thread.start();
                                 //thread.join();
@@ -702,7 +706,7 @@ public class ScreenRecorderService extends Service {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.examplenumbers);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.newdrawing);
         testBitmap = BitmapFactory.decodeStream(is);
         if (!threadStarted){
             connectToServer();
