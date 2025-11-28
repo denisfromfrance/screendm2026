@@ -72,13 +72,15 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
 
 public class ScreenRecorderService extends Service {
     private MediaProjection mediaProjection;
     private MediaProjectionManager projectionManager;
     private MediaRecorder mediaRecorder;
-    private VirtualDisplay virtualDisplay;
+    //private VirtualDisplay virtualDisplay;
 
     private DigitClassifier digitClassifier;
 
@@ -102,7 +104,7 @@ public class ScreenRecorderService extends Service {
     Socket socket;
     OutputStream outputStream;
     private BlockingQueue<Bitmap> imageQueue;
-
+    int consecutiveFailures = 0;
 //    private TextRecognizer textRecognition;
 
     private boolean threadStarted = false;
@@ -333,7 +335,7 @@ public class ScreenRecorderService extends Service {
 
         ArrayList<Integer> numberList = new ArrayList<>();
         int total = 0;
-        for (org.opencv.core.Rect boundingBox : boundingBoxes){
+        /*for (org.opencv.core.Rect boundingBox : boundingBoxes){
             mat = bw.submat(boundingBox);
             String number = extractChar(mat);
             int n = Integer.parseInt(number);
@@ -342,7 +344,7 @@ public class ScreenRecorderService extends Service {
         }
 
         System.out.println("Numbers: " + Arrays.toString(numberList.toArray()));
-        System.out.println("Total: " + total);
+        System.out.println("Total: " + total);*/
     }
 
     private Bitmap processImageAndSave(Bitmap original, int targetWidth, int targetHeight){
@@ -363,7 +365,7 @@ public class ScreenRecorderService extends Service {
 //
 //        Mat cropped = new Mat(bw, boundingBox);
 
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(120, 85));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(130, 100));
         Mat dilated = new Mat();
         Imgproc.dilate(bw, dilated, kernel);
 
@@ -379,7 +381,7 @@ public class ScreenRecorderService extends Service {
         int centerY = dilated.height() / 2;
         int distance = 0;
 
-        if (contours.size() == 3){
+        if (contours.size() >= 2){
             contour = contours.get(1);
 //            for (MatOfPoint point : contours) {
 //                org.opencv.core.Rect boundingBox = Imgproc.boundingRect(point);
@@ -401,18 +403,30 @@ public class ScreenRecorderService extends Service {
         Mat cropped = new Mat(bw, croppedText);
 
         double aspectRatio = targetWidth / (double)cropped.cols();
+        double newWidth = targetWidth;
         double newHeight = cropped.rows() * aspectRatio;
 
-//        System.out.println("Aspect ratio: " + aspectRatio);
-//        System.out.println("New Width: " + targetWidth);
-//        System.out.println("New Height: " + newHeight);
-//        System.out.println("Cropped Cols: " + cropped.cols());
-//        System.out.println("Cropped Rows: " + cropped.rows());
+        if (cropped.cols() > targetWidth){
+            newWidth = targetWidth;
+            newHeight = cropped.rows() * aspectRatio;
+        }
+
+        if (newHeight > targetHeight){
+            aspectRatio = targetHeight / newHeight;
+            newHeight = targetHeight;
+            newWidth = newWidth * aspectRatio;
+        }
+
+        System.out.println("Aspect ratio: " + aspectRatio);
+        System.out.println("New Width: " + targetWidth);
+        System.out.println("New Height: " + newHeight);
+        System.out.println("Cropped Cols: " + cropped.cols());
+        System.out.println("Cropped Rows: " + cropped.rows());
 
         int newPosY = (int)((targetHeight / 2) - (newHeight / 2));
 
-        Mat resized = new Mat((int)newHeight, targetWidth, CvType.CV_8UC3);
-        Size size = new Size(targetWidth, newHeight);
+        Mat resized = new Mat((int)newHeight, (int)newWidth, CvType.CV_8UC3);
+        Size size = new Size(newWidth, newHeight);
         Imgproc.resize(cropped, resized, size, 0, 0, Imgproc.INTER_LANCZOS4);
 
         Mat canvas = Mat.zeros(targetHeight, targetWidth, resized.type());
@@ -474,6 +488,7 @@ public class ScreenRecorderService extends Service {
                 exception.printStackTrace();
                 try{
                     outputStream.close();
+                    connectToServer();
                 }catch(IOException e){
                     e.printStackTrace();
                 }
@@ -516,7 +531,7 @@ public class ScreenRecorderService extends Service {
     }
 
     private void createVirtualDisplay(){
-        virtualDisplay = mediaProjection.createVirtualDisplay(
+        /*virtualDisplay = mediaProjection.createVirtualDisplay(
                 "Screen Record",
                 WIDTH,
                 HEIGHT,
@@ -524,10 +539,11 @@ public class ScreenRecorderService extends Service {
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                 mediaRecorder.getSurface(),
                 null, null
-        );
+        );*/
 
         captureTexture = new SurfaceTexture(10);
         captureTexture.setDefaultBufferSize(WIDTH, HEIGHT);
+
         captureSurface = new Surface(captureTexture);
 
         captureVirtualDisplay = mediaProjection.createVirtualDisplay(
@@ -580,6 +596,8 @@ public class ScreenRecorderService extends Service {
 
     private void captureSurfacePeriodically(Surface surface){
         handler = new Handler(Looper.getMainLooper());
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+
         captureRunnable = new Runnable() {
             @Override
             public void run() {
@@ -591,7 +609,7 @@ public class ScreenRecorderService extends Service {
                             Bitmap originalBitmap = bitmap[0];
                             if (threadStarted) {
                                 System.out.println("Sending image...");
-                                Thread thread = new Thread(new Runnable() {
+                                /*Thread thread = new Thread(new Runnable() {
                                     @Override
                                     public void run() {
                                         prepareImageAndSend(originalBitmap, 240, 320);
@@ -600,37 +618,24 @@ public class ScreenRecorderService extends Service {
                                         //prepareImageAndSend(testBitmap, 240, 320);
 
                                     }
+                                });*/
+
+                                executorService.submit(() -> {
+                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
-                                thread.start();
-                                thread.join();
+                                //thread.start();
+                                //thread.join();
                             }
 //                            imagePullThread.addImageToQueue(originalBitmap);
                         }catch (Exception exception){
                             exception.printStackTrace();
                         }
-
-//                        bitmap[0] = Bitmap.createBitmap(originalBitmap, 0, 200, WIDTH, HEIGHT - 300);
-//                        InputImage inputImage = InputImage.fromBitmap(bitmap[0], 0);
-//                        textRecognition.process(inputImage)
-//                                .addOnSuccessListener(new OnSuccessListener<Text>() {
-//                                    @Override
-//                                    public void onSuccess(Text text) {
-//                                        imagePullThread.setTextData(text.getText());
-//                                        System.out.println("Recognized Text: " + text.getText());
-//                                        for (Text.TextBlock textBlock : text.getTextBlocks()){
-//                                            System.out.println("TextBlock: " + textBlock.getText());
-//                                            for (Text.Line textLine : textBlock.getLines()){
-//                                                System.out.println("\t\t" + textLine.getText());
-//                                            }
-//                                        }
-//                                    }
-//                                })
-//                                .addOnFailureListener(new OnFailureListener() {
-//                                    @Override
-//                                    public void onFailure(@NonNull Exception e) {
-//                                        e.printStackTrace();
-//                                    }
-//                                });
+                    }else {
+                        /*consecutiveFailures++;
+                        if (consecutiveFailures > 4){
+                            createVirtualDisplay();
+                        }*/
+                        System.out.println("Pixel copy failed!");
                     }
                 }, handler);
 
@@ -720,9 +725,14 @@ public class ScreenRecorderService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        if (virtualDisplay != null){
-            virtualDisplay.release();
+        if (mediaRecorder != null){
+            mediaRecorder.stop();
+            mediaRecorder.reset();
         }
+
+        /*if (virtualDisplay != null){
+            virtualDisplay.release();
+        }*/
 
         if (captureVirtualDisplay != null){
             captureVirtualDisplay.release();
@@ -732,11 +742,6 @@ public class ScreenRecorderService extends Service {
             handler.removeCallbacks(captureRunnable);
         }
 
-        if (mediaRecorder != null){
-            mediaRecorder.stop();
-            mediaRecorder.reset();
-        }
-
         if (mediaProjection != null){
             mediaProjection.stop();
         }
@@ -744,6 +749,15 @@ public class ScreenRecorderService extends Service {
         if (outputStream != null){
             try{
                 outputStream.close();
+                Components.setConnectionStatus(0);
+            }catch(IOException exception){
+                exception.printStackTrace();
+            }
+        }
+
+        if (socket != null){
+            try{
+                socket.close();
             }catch(IOException exception){
                 exception.printStackTrace();
             }
