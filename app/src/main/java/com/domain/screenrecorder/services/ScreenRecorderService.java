@@ -14,11 +14,13 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.media.Image;
+import android.media.ImageReader;
 import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
@@ -91,6 +93,7 @@ public class ScreenRecorderService extends Service {
     private SurfaceTexture captureTexture;
     private Surface captureSurface;
     private VirtualDisplay captureVirtualDisplay;
+    private ImageReader imageReader;
 
     Bitmap testBitmap;
 
@@ -106,6 +109,9 @@ public class ScreenRecorderService extends Service {
     private BlockingQueue<Bitmap> imageQueue;
     int consecutiveFailures = 0;
 //    private TextRecognizer textRecognition;
+
+    int resultCode;
+    Intent data;
 
     private boolean threadStarted = false;
 
@@ -500,7 +506,7 @@ public class ScreenRecorderService extends Service {
 
     private void prepareImageAndSend(Bitmap bitmap, int width, int height){
         Bitmap image = prepareImageForDisplay(bitmap, width, height);
-        saveImageToPublicDirectory(getApplicationContext(), image, "Debugging Image.jpg");
+//        saveImageToPublicDirectory(getApplicationContext(), image, "Debugging Image.jpg");
         System.out.println("Image received.");
         sendBytes(bitmapTo1BitArray(image));
     }
@@ -513,6 +519,8 @@ public class ScreenRecorderService extends Service {
 
     private void setupMediaRecorder(){
         System.out.println("Setting up media recorder...");
+        mediaProjection = projectionManager.getMediaProjection(resultCode, data);
+
         try{
             File dir = getExternalFilesDir(null);
             String filePath = new File(dir, "/recordedVideo.mp4").getAbsolutePath();
@@ -605,6 +613,7 @@ public class ScreenRecorderService extends Service {
             @Override
             public void run() {
                 final Bitmap[] bitmap = {Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888)};
+
                 PixelCopy.request(surface, bitmap[0], copyResult -> {
                     if (copyResult == PixelCopy.SUCCESS){
                         System.out.println("Bitmap loaded successfully!");
@@ -612,33 +621,17 @@ public class ScreenRecorderService extends Service {
                             Bitmap originalBitmap = bitmap[0];
                             if (threadStarted) {
                                 System.out.println("Sending image...");
-                                /*Thread thread = new Thread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        prepareImageAndSend(originalBitmap, 240, 320);
-                                        //prepareImageAndSend(testBitmap, 240, 320);
-//                                        prepareImageAndSend(testBitmap, 240, 320);
-                                        //prepareImageAndSend(testBitmap, 240, 320);
-
-                                    }
-                                });*/
 
                                 executorService.submit(() -> {
                                     prepareImageAndSend(testBitmap, 240, 320);
 //                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
-                                //thread.start();
-                                //thread.join();
                             }
-//                            imagePullThread.addImageToQueue(originalBitmap);
                         }catch (Exception exception){
                             exception.printStackTrace();
                         }
                     }else {
-                        /*consecutiveFailures++;
-                        if (consecutiveFailures > 4){
-                            createVirtualDisplay();
-                        }*/
+                        setupMediaRecorder();
                         System.out.println("Pixel copy failed!");
                     }
                 }, handler);
@@ -678,13 +671,6 @@ public class ScreenRecorderService extends Service {
                     outputStream = socket.getOutputStream();
 
                     Components.setConnectionStatus(1);
-
-//                    try {
-//                        outputStream.write("CONNECTED!\n".getBytes(StandardCharsets.UTF_8));
-//                        outputStream.flush();
-//                    }catch(IOException exception){
-//                        exception.printStackTrace();
-//                    }
                 } catch (IOException exception) {
                     exception.printStackTrace();
                 }
@@ -696,10 +682,11 @@ public class ScreenRecorderService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         createNotification();
-        int resultCode = intent.getIntExtra("resultCode", Activity.RESULT_CANCELED);
-        Intent data = intent.getParcelableExtra("data");
+        resultCode = intent.getIntExtra("resultCode", Activity.RESULT_CANCELED);
+        data = intent.getParcelableExtra("data");
+
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-        mediaProjection = projectionManager.getMediaProjection(resultCode, data);
+
         System.out.println("Setting up everything...");
         try {
             digitClassifier = new DigitClassifier(getApplicationContext());
@@ -708,11 +695,12 @@ public class ScreenRecorderService extends Service {
         }
         InputStream is = getApplicationContext().getResources().openRawResource(R.raw.newdrawing);
         testBitmap = BitmapFactory.decodeStream(is);
+
         if (!threadStarted){
             connectToServer();
-//            imagePullThread.start();
             threadStarted = true;
         }
+
         setupMediaRecorder();
         createVirtualDisplay();
         mediaRecorder.start();
@@ -730,8 +718,12 @@ public class ScreenRecorderService extends Service {
     public void onDestroy() {
         super.onDestroy();
         if (mediaRecorder != null){
-            mediaRecorder.stop();
-            mediaRecorder.reset();
+            try {
+                mediaRecorder.stop();
+                mediaRecorder.reset();
+            }catch(Exception exception){
+                System.out.println("Media recorder stop failed!");
+            }
         }
 
         /*if (virtualDisplay != null){
