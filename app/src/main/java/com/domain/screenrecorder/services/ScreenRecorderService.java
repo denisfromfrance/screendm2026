@@ -8,6 +8,7 @@ import android.app.Service;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -353,23 +354,18 @@ public class ScreenRecorderService extends Service {
         System.out.println("Total: " + total);*/
     }
 
+    private Mat resizeMat(Mat inputMat, int newWidth, int newHeight){
+        Mat resized = new Mat((int)newHeight, (int)newWidth, CvType.CV_8UC3);
+        Size size = new Size(newWidth, newHeight);
+        Imgproc.resize(inputMat, resized, size, 0, 0, Imgproc.INTER_LANCZOS4);
+        return resized;
+    }
+
     private Bitmap processImageAndSave(Bitmap original, int targetWidth, int targetHeight){
         Mat src = new Mat();
         Utils.bitmapToMat(original, src);
 
-//        int topCropOffset = 50;
-//        int bottomCropOffset = 50;
-//        org.opencv.core.Rect cropRect = new org.opencv.core.Rect(0, topCropOffset, src.cols(), src.rows() - topCropOffset - bottomCropOffset);
-//        src = new Mat(src, cropRect);
-
         Mat bw = convertToBlackAndWhite(src);
-
-
-//        Mat points = new Mat();
-//        Core.findNonZero(bw, points);
-//        org.opencv.core.Rect boundingBox = Imgproc.boundingRect(points);
-//
-//        Mat cropped = new Mat(bw, boundingBox);
 
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(150, 100));
         Mat dilated = new Mat();
@@ -391,17 +387,6 @@ public class ScreenRecorderService extends Service {
 
         if (contours.size() >= 2){
             contour = contours.get(1);
-//            for (MatOfPoint point : contours) {
-//                org.opencv.core.Rect boundingBox = Imgproc.boundingRect(point);
-//                int distanceFromCenter = boundingBox.y;
-//                if (boundingBox.y + boundingBox.height > centerY) {
-//                    distanceFromCenter = dilated.height() - boundingBox.y + boundingBox.height;
-//                }
-//                if (distanceFromCenter > distance) {
-//                    distance = distanceFromCenter;
-//                    contour = point;
-//                }
-//            }
         }
 
         Mat output = Mat.zeros(bw.size(), CvType.CV_8UC3);
@@ -442,8 +427,15 @@ public class ScreenRecorderService extends Service {
         Mat targetArea = canvas.submat(roi);
         resized.copyTo(targetArea);
 
+        //Mat resizedMat = resizeMat(bw, (int)newWidth, (int)newHeight);
+
+        //saveImage(resizedMat);
+
         Bitmap bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(canvas, bitmap);
+
+        //Bitmap bitmap = Bitmap.createBitmap(resizedMat.cols(), resizedMat.rows(), Bitmap.Config.ARGB_8888);
+        //Utils.matToBitmap(resizedMat, bitmap);
 
         extractLines(bitmap);
         return bitmap;
@@ -557,6 +549,25 @@ public class ScreenRecorderService extends Service {
 
         captureSurface = new Surface(captureTexture);
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE){
+            mediaProjection.registerCallback(new MediaProjection.Callback() {
+                @Override
+                public void onStop() {
+                    super.onStop();
+                }
+
+                @Override
+                public void onCapturedContentResize(int width, int height) {
+                    super.onCapturedContentResize(width, height);
+                }
+
+                @Override
+                public void onCapturedContentVisibilityChanged(boolean isVisible) {
+                    super.onCapturedContentVisibilityChanged(isVisible);
+                }
+            }, new Handler(Looper.getMainLooper()));
+        }
+
         captureVirtualDisplay = mediaProjection.createVirtualDisplay(
                 "Capture VDisplay",
                 WIDTH,
@@ -623,8 +634,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-                                    prepareImageAndSend(testBitmap, 240, 320);
-//                                    prepareImageAndSend(originalBitmap, 240, 320);
+                                    //prepareImageAndSend(testBitmap, 240, 320);
+                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){
@@ -656,7 +667,22 @@ public class ScreenRecorderService extends Service {
                     .setSmallIcon(R.drawable.ic_launcher_foreground)
                     .build();
 
-            startForeground(1, notification);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                        1,
+                        notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                );
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                        1,
+                        notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                );
+            } else {
+                // Older versions
+                startForeground(1, notification);
+            }
         }
     }
 
@@ -681,9 +707,10 @@ public class ScreenRecorderService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        createNotification();
         resultCode = intent.getIntExtra("resultCode", Activity.RESULT_CANCELED);
         data = intent.getParcelableExtra("data");
+
+        createNotification();
 
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 

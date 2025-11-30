@@ -73,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
             service.putExtra("resultCode", resultCode);
             service.putExtra("data", data);
             System.out.println("Starting service...");
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ContextCompat.startForegroundService(this, service);
             }else {
