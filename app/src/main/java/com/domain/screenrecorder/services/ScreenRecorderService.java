@@ -41,7 +41,7 @@ import androidx.core.app.NotificationCompat;
 import com.domain.screenrecorder.R;
 import com.domain.screenrecorder.states.Components;
 import com.domain.screenrecorder.threads.ImagePullThread;
-import com.domain.screenrecorder.utils.DigitClassifier;
+//import com.domain.screenrecorder.utils.DigitClassifier;
 //import com.google.android.gms.common.util.Hex;
 //import com.google.android.gms.tasks.OnFailureListener;
 //import com.google.android.gms.tasks.OnSuccessListener;
@@ -85,7 +85,7 @@ public class ScreenRecorderService extends Service {
     private MediaRecorder mediaRecorder;
     //private VirtualDisplay virtualDisplay;
 
-    private DigitClassifier digitClassifier;
+    //private DigitClassifier digitClassifier;
 
     private static final int WIDTH = 1080;
     private static final int HEIGHT = 1920;
@@ -275,9 +275,9 @@ public class ScreenRecorderService extends Service {
         Core.bitwise_not(newImage, invertedImage);
 //        saveImage(invertedImage);
 
-        int classifiedDigit = digitClassifier.classify(invertedImage);
-        System.out.println("Classified Digit: " + classifiedDigit);
-        return classifiedDigit;
+        //int classifiedDigit = digitClassifier.classify(invertedImage);
+        //System.out.println("Classified Digit: " + classifiedDigit);
+        return 0;
     }
 
     private String extractChar(Mat input){
@@ -437,7 +437,7 @@ public class ScreenRecorderService extends Service {
         //Bitmap bitmap = Bitmap.createBitmap(resizedMat.cols(), resizedMat.rows(), Bitmap.Config.ARGB_8888);
         //Utils.matToBitmap(resizedMat, bitmap);
 
-        extractLines(bitmap);
+        //extractLines(bitmap);
         return bitmap;
     }
 
@@ -489,6 +489,21 @@ public class ScreenRecorderService extends Service {
                 try{
                     outputStream.close();
                     connectToServer();
+
+                    try {
+                        outputStream.write(header.getBytes(StandardCharsets.UTF_8));
+                        outputStream.flush();
+
+                        for (int i = 0; i < totalChunks; i++){
+                            int start = i * chunkSize;
+                            int length = Math.min(chunkSize, bytes.length - start);
+                            outputStream.write(bytes, start, length);
+                            System.out.println(Arrays.toString(Arrays.copyOfRange(bytes, 0, 50)));
+                            outputStream.flush();
+                        }
+                    }catch(IOException e){
+                        e.printStackTrace();
+                    }
                 }catch(IOException e){
                     e.printStackTrace();
                 }
@@ -634,8 +649,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-                                    //prepareImageAndSend(testBitmap, 240, 320);
-                                    prepareImageAndSend(originalBitmap, 240, 320);
+                                    prepareImageAndSend(testBitmap, 240, 320);
+                                    //prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){
@@ -715,12 +730,12 @@ public class ScreenRecorderService extends Service {
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
         System.out.println("Setting up everything...");
-        try {
+        /*try {
             digitClassifier = new DigitClassifier(getApplicationContext());
         } catch (IOException e) {
             e.printStackTrace();
-        }
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.newdrawing);
+        }*/
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.newtestimage);
         testBitmap = BitmapFactory.decodeStream(is);
 
         if (!threadStarted){

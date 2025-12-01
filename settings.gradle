@@ -11,12 +11,10 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         flatDir {
-            dirs("libs")
+            dirs("app/libs")
         }
     }
 }
 rootProject.name = "ScreenRecorder"
 include ':app'
-include ':java'
-include ':sdk'
 include ':sdk'
