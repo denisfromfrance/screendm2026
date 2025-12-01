@@ -42,7 +42,9 @@ dependencies {
 
     implementation 'com.google.mediapipe:tasks-vision:0.10.14'
     implementation 'com.google.mediapipe:tasks-core:0.10.14'
-    implementation project(path: ':sdk')
+//    implementation project(path: ':sdk')
+
+    implementation(name: "sdk-release", ext: 'aar')
 
 //    implementation 'com.google.mediapipe:tasks-text:0.10.14'
 
