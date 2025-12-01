@@ -27,11 +27,6 @@ android {
         targetCompatibility JavaVersion.VERSION_11
     }
 
-
-    dexOptions {
-        preDexLibraries = false
-    }
-
 }
 
 dependencies {
