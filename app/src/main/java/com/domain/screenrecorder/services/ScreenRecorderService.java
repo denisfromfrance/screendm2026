@@ -519,7 +519,7 @@ public class ScreenRecorderService extends Service {
 
             bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(canvas, bitmap);
-            saveImage(resized);
+            //saveImage(resized);
         }else{
             Mat canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC3);
             bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
