@@ -396,18 +396,10 @@ public class ScreenRecorderService extends Service {
         contours.remove(contours.size() - 1);
         contours.remove(0);
 
-        System.out.println("Number of contours remaining: " + contours.size());
-
         Map<MatOfPoint, Integer[]> submats = new LinkedHashMap<>();
 
         int groupImageHeight = 0;
         int groupImageWidth = 0;
-
-        int prevY = 0;
-        int prevHeight = 0;
-
-        int prevX = 0;
-        int prevWidth = 0;
 
         int xStart = Integer.MAX_VALUE;
         int xEnd = 0;
@@ -417,13 +409,6 @@ public class ScreenRecorderService extends Service {
 
         for (MatOfPoint c : contours){
             org.opencv.core.Rect r = Imgproc.boundingRect(c);
-
-            // reset the X position if the current contour x position is before the center of the x axis of the image
-            // this tells the new contour is in a new line
-            if (r.x < prevX){
-                prevX = 0;
-                prevWidth = 0;
-            }
 
             int imagePosX = r.x;
             int imagePosY = r.y;
@@ -471,75 +456,82 @@ public class ScreenRecorderService extends Service {
             }
 
             submats.put(c, new Integer[]{imagePosX - xStart, imagePosY - yStart, imageWidth, imageHeight});
-
-            prevY = r.y;
-            prevHeight = r.height;
-            prevX = r.x;
-            prevWidth = r.width;
         }
 
-        groupImageHeight += 10;
-        groupImageWidth += 10;
+        Bitmap bitmap;
+        System.out.println("Number of contours remaining: " + contours.size());
+        if (contours.size() > 0) {
+            System.out.println("Contour found.. started processing it!");
+            groupImageWidth = (xEnd - xStart);
+            groupImageHeight = (yEnd - yStart);
 
-        groupImageWidth = (xEnd - xStart);
-        groupImageHeight = (yEnd - yStart);
+            Mat cropped = Mat.zeros(groupImageHeight, groupImageWidth, bw.type());
+            Mat tempBWSubmat;
+            Mat croppedMat;
+            for (Map.Entry<MatOfPoint, Integer[]> content : submats.entrySet()){
+                org.opencv.core.Rect cropRoi = Imgproc.boundingRect(content.getKey());
+                croppedMat = new Mat(bw, cropRoi);
 
+                Integer[] imageData = content.getValue();
+                tempBWSubmat = cropped.submat(new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]));
+                croppedMat.copyTo(tempBWSubmat);
+            }
 
-        Mat cropped = Mat.zeros(groupImageHeight, groupImageWidth, bw.type());
-        Mat tempBWSubmat;
-        Mat croppedMat;
-        for (Map.Entry<MatOfPoint, Integer[]> content : submats.entrySet()){
-            org.opencv.core.Rect cropRoi = Imgproc.boundingRect(content.getKey());
-            croppedMat = new Mat(bw, cropRoi);
+            double aspectRatio = targetWidth / (double)cropped.cols();
+            double newWidth = targetWidth;
+            double newHeight = cropped.rows() * aspectRatio;
 
-            Integer[] imageData = content.getValue();
-            tempBWSubmat = cropped.submat(new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]));
-            croppedMat.copyTo(tempBWSubmat);
+            System.out.println("Aspect ratio: " + aspectRatio);
+            System.out.println("New Width: " + newWidth);
+            System.out.println("New Height: " + newHeight);
+            System.out.println("Cropped Cols: " + cropped.cols());
+            System.out.println("Cropped Rows: " + cropped.rows());
+
+            if (cropped.cols() > targetWidth){
+                newWidth = targetWidth;
+                newHeight = cropped.rows() * aspectRatio;
+            }
+
+            if (newHeight > targetHeight){
+                aspectRatio = targetHeight / newHeight;
+                newHeight = targetHeight;
+                newWidth = newWidth * aspectRatio;
+            }
+
+            int newPosY = (int)((targetHeight / 2) - (newHeight / 2));
+            int newPosX = (int)((targetWidth / 2) - (newWidth / 2));
+
+            System.out.println("Aspect ratio: " + aspectRatio);
+            System.out.println("Updated Width: " + newWidth);
+            System.out.println("Updated Height: " + newHeight);
+
+            System.out.println("New Pos X: " + newPosX);
+            System.out.println("New Pos Y: " + newPosY);
+
+            Mat resized = Mat.zeros((int)newHeight, (int)newWidth, CvType.CV_8UC3);
+            Size size = new Size(newWidth, newHeight);
+            Imgproc.resize(cropped, resized, size, 0, 0, Imgproc.INTER_LANCZOS4);
+
+            Mat canvas = Mat.zeros(targetHeight, targetWidth, resized.type());
+            org.opencv.core.Rect roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
+            Mat targetArea = canvas.submat(roi);
+            resized.copyTo(targetArea);
+
+            bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
+            Utils.matToBitmap(canvas, bitmap);
+            saveImage(resized);
+        }else{
+            Mat canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC3);
+            bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
+            Utils.matToBitmap(canvas, bitmap);
         }
-
-
-        double aspectRatio = targetWidth / (double)cropped.cols();
-        double newWidth = targetWidth;
-        double newHeight = cropped.rows() * aspectRatio;
-
-        if (cropped.cols() > targetWidth){
-            newWidth = targetWidth;
-            newHeight = cropped.rows() * aspectRatio;
-        }
-
-        if (newHeight > targetHeight){
-            aspectRatio = targetHeight / newHeight;
-            newHeight = targetHeight;
-            newWidth = newWidth * aspectRatio;
-        }
-
-        System.out.println("Aspect ratio: " + aspectRatio);
-        System.out.println("New Width: " + targetWidth);
-        System.out.println("New Height: " + newHeight);
-        System.out.println("Cropped Cols: " + cropped.cols());
-        System.out.println("Cropped Rows: " + cropped.rows());
-
-        int newPosY = (int)((targetHeight / 2) - (newHeight / 2));
-        int newPosX = (int)((targetWidth / 2) - (newWidth / 2));
-
-        Mat resized = new Mat((int)newHeight, (int)newWidth, CvType.CV_8UC3);
-        Size size = new Size(newWidth, newHeight);
-        Imgproc.resize(cropped, resized, size, 0, 0, Imgproc.INTER_LANCZOS4);
-
-        Mat canvas = Mat.zeros(targetHeight, targetWidth, resized.type());
-        org.opencv.core.Rect roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
-        Mat targetArea = canvas.submat(roi);
-        resized.copyTo(targetArea);
-
-        //saveImage(canvas);
 
         //Mat resizedMat = resizeMat(bw, (int)newWidth, (int)newHeight);
 
-        //saveImage(resizedMat);
+//        saveImage(resizedMat);
 
-        Bitmap bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
-        Utils.matToBitmap(canvas, bitmap);
-
+//        saveImage(canvas);
+        saveImageToPublicDirectory(getApplicationContext(), bitmap, "Updated.jpg");
         //Bitmap bitmap = Bitmap.createBitmap(resizedMat.cols(), resizedMat.rows(), Bitmap.Config.ARGB_8888);
         //Utils.matToBitmap(resizedMat, bitmap);
 
@@ -841,7 +833,7 @@ public class ScreenRecorderService extends Service {
         } catch (IOException e) {
             e.printStackTrace();
         }*/
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.newdrawing);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.newtestimage);
         testBitmap = BitmapFactory.decodeStream(is);
 
         if (!threadStarted){
