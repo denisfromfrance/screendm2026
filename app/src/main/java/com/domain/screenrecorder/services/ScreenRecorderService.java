@@ -57,6 +57,7 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
+import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
@@ -72,8 +73,12 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLOutput;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -379,21 +384,181 @@ public class ScreenRecorderService extends Service {
 
         System.out.println("Contours Count: " + contours.size());
 
-        MatOfPoint contour = contours.get(0);
+        contours.sort(new Comparator<MatOfPoint>() {
+            @Override
+            public int compare(MatOfPoint o1, MatOfPoint o2) {
+                org.opencv.core.Rect rect1 = Imgproc.boundingRect(o1);
+                org.opencv.core.Rect rect2 = Imgproc.boundingRect(o2);
+                return Integer.compare(rect1.y, rect2.y);
+            }
+        });
 
-        int contourIndex = 0;
-        int centerY = dilated.height() / 2;
-        int distance = 0;
+        contours.remove(contours.size() - 1);
+        contours.remove(0);
 
-        if (contours.size() >= 2){
-            contour = contours.get(1);
+        Map<MatOfPoint, Integer[]> submats = new LinkedHashMap<>();
+
+        int groupImageHeight = 0;
+        int groupImageWidth = 0;
+
+        int prevY = 0;
+        int prevHeight = 0;
+
+        int prevX = 0;
+        int prevWidth = 0;
+
+        int xStart = Integer.MAX_VALUE;
+        int xEnd = 0;
+
+        int yStart = Integer.MAX_VALUE;
+        int yEnd = 0;
+
+        for (MatOfPoint c : contours){
+            org.opencv.core.Rect r = Imgproc.boundingRect(c);
+
+            // reset the X position if the current contour x position is before the center of the x axis of the image
+            // this tells the new contour is in a new line
+            if (r.x < prevX){
+                prevX = 0;
+                prevWidth = 0;
+            }
+
+            int imagePosX = r.x;
+            int imagePosY = r.y;
+            int imageWidth = r.width;
+            int imageHeight = r.height;
+
+            if (r.x < xStart){
+                xStart = r.x;
+            }
+
+            if (xEnd == 0) {
+                if (r.x + r.width > xEnd) {
+                    xEnd += r.x + r.width;
+                }
+            }else {
+                if (r.x > xEnd) {
+                    imagePosX = xEnd;
+                    xEnd += r.width;
+                } else {
+                    imagePosX = r.x;
+                    if (r.width > xEnd) {
+                        xEnd += (r.width - xEnd);
+                    }
+                }
+            }
+
+            System.out.println("Crop area size: " + (xEnd - xStart));
+            System.out.println("Crop area X START: " + xStart);
+            System.out.println("Crop area X END: " + xEnd);
+
+            if (r.y < yStart){
+                yStart = r.y;
+            }
+
+            if(yEnd == 0){
+                if (r.y + r.height > yEnd){
+                    yEnd += (r.y + r.height);
+                }
+            }else {
+                if (r.y < yEnd) {
+                    imagePosY = r.y;
+                    if (r.y + r.height > yEnd) {
+                        yEnd += (r.y + r.height) - yEnd;
+                    }
+                } else {
+                    imagePosY = yEnd;
+                    yEnd += r.height;
+                }
+            }
+
+            System.out.println("Crop area size: " + (yEnd - yStart));
+            System.out.println("Crop area Y START: " + yStart);
+            System.out.println("Crop area Y END: " + yEnd);
+
+//            if (prevY != 0 && prevHeight != 0){
+//                if (r.y > prevY && r.y < prevY + prevHeight) {
+//                    imagePosY = r.y;
+//                    groupImageHeight += (r.height - (prevY + prevHeight - r.y));
+//                }else{
+//                    imagePosY = groupImageHeight;
+//                    groupImageHeight += r.height;
+//                }
+//            }else{
+//                groupImageHeight += r.height;
+//            }
+//
+//            if (prevX != 0 && prevWidth != 0){
+//                if ((r.x > prevX && r.x < (prevX + prevHeight)) || ((r.x + r.width) > prevX && (r.x + r.width) < prevX + prevWidth)){
+//                    imagePosX = r.x;
+//                    groupImageWidth += (r.width - (prevX + prevWidth - r.x));
+//                }else{
+//                    imagePosX = groupImageWidth;
+//                    groupImageWidth += r.width;
+//                }
+//            }else{
+//                groupImageWidth += r.width;
+//            }
+
+
+            System.out.println("Cropped Content Pos: " + imagePosX + ", " + imagePosY);
+            System.out.println("Cropped Content Size: " + imageWidth + "x" + imageHeight);
+
+            submats.put(c, new Integer[]{imagePosX - xStart, imagePosY - yStart, imageWidth, imageHeight});
+
+            prevY = r.y;
+            prevHeight = r.height;
+            prevX = r.x;
+            prevWidth = r.width;
         }
 
-        Mat output = Mat.zeros(bw.size(), CvType.CV_8UC3);
-        Imgproc.drawContours(output, contours, -1, new Scalar(0, 255, 0), 2);
+        groupImageHeight += 10;
+        groupImageWidth += 10;
 
-        org.opencv.core.Rect croppedText = Imgproc.boundingRect(contour);
-        Mat cropped = new Mat(bw, croppedText);
+        groupImageWidth = (xEnd - xStart);
+        groupImageHeight = (yEnd - yStart);
+
+        System.out.println("X START: " + xStart);
+        System.out.println("X End: " + xEnd);
+
+        System.out.println("New image size: " + groupImageWidth + "x" + groupImageHeight);
+        System.out.println("New image size with method 2: " + (xEnd - xStart) + "x" + (yEnd - yStart));
+
+        Mat cropped = Mat.zeros(groupImageHeight, groupImageWidth, bw.type());
+        Mat tempBWSubmat;
+        Mat croppedMat;
+        for (Map.Entry<MatOfPoint, Integer[]> content : submats.entrySet()){
+            org.opencv.core.Rect cropRoi = Imgproc.boundingRect(content.getKey());
+            croppedMat = new Mat(bw, cropRoi);
+
+            Integer[] imageData = content.getValue();
+            System.out.println("Placing image at " + imageData[0] + ',' + imageData[1]);
+            System.out.println("Placing image size: " + imageData[2] + 'x' + imageData[3]);
+            tempBWSubmat = cropped.submat(new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]));
+            croppedMat.copyTo(tempBWSubmat);
+        }
+//        saveImage(cropped);
+
+//        Mat groupImageMat = new Mat(groupImageHeight, groupImageWidth, bw.type());
+//        int imagePosY = 0;
+//        for (MatOfPoint c : contours){
+//            org.opencv.core.Rect r = Imgproc.boundingRect(c);
+//            org.opencv.core.Rect targetArea = new org.opencv.core.Rect(r.x, imagePosY, r.width, r.height);
+//            Mat submat = groupImageMat.submat(targetArea);
+//            bw.submat(r).copyTo(submat);
+//            imagePosY += r.height;
+//        }
+
+//        if (contours.size() >= 2){
+//            contour = contours.get(1);
+//        }
+
+//        Mat output = Mat.zeros(bw.size(), CvType.CV_8UC3);
+//        Imgproc.drawContours(output, contours, -1, new Scalar(0, 255, 0), 2);
+
+//        org.opencv.core.Rect croppedText = Imgproc.boundingRect(contour);
+//        org.opencv.core.Rect croppedText = new org.opencv.core.Rect(minX, minY, maxX - minX, maxY - minY);
+//        Mat cropped = new Mat(bw, croppedText);
 
         double aspectRatio = targetWidth / (double)cropped.cols();
         double newWidth = targetWidth;
@@ -417,15 +582,18 @@ public class ScreenRecorderService extends Service {
         System.out.println("Cropped Rows: " + cropped.rows());
 
         int newPosY = (int)((targetHeight / 2) - (newHeight / 2));
+        int newPosX = (int)((targetWidth / 2) - (newWidth / 2));
 
         Mat resized = new Mat((int)newHeight, (int)newWidth, CvType.CV_8UC3);
         Size size = new Size(newWidth, newHeight);
         Imgproc.resize(cropped, resized, size, 0, 0, Imgproc.INTER_LANCZOS4);
 
         Mat canvas = Mat.zeros(targetHeight, targetWidth, resized.type());
-        org.opencv.core.Rect roi = new org.opencv.core.Rect(0, newPosY, resized.cols(), resized.rows());
+        org.opencv.core.Rect roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
         Mat targetArea = canvas.submat(roi);
         resized.copyTo(targetArea);
+
+        saveImage(canvas);
 
         //Mat resizedMat = resizeMat(bw, (int)newWidth, (int)newHeight);
 
