@@ -485,7 +485,8 @@ public class ScreenRecorderService extends Service {
 //                Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0] + subtractingAmount, imageData[1] + subtractingAmountY, imageData[2], imageData[3]), new Scalar(255), 2);
                 croppedMat.copyTo(tempBWSubmat);
 //                Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0] + subtractingAmountX, imageData[1] + subtractingAmountY, imageData[2] - subtractingAmountX * 2, imageData[3] - subtractingAmountY * 2), new Scalar(255), 2);
-                Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]), new Scalar(255), 2);
+
+                //Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]), new Scalar(255), 2);
             }
 
 //            saveImage(cropped);
@@ -761,8 +762,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-                                    prepareImageAndSend(testBitmap, 240, 320);
-                                    //prepareImageAndSend(originalBitmap, 240, 320);
+                                    //prepareImageAndSend(testBitmap, 240, 320);
+                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){
