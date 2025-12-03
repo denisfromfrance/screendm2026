@@ -465,7 +465,7 @@ public class ScreenRecorderService extends Service {
             groupImageWidth = (xEnd - xStart);
             groupImageHeight = (yEnd - yStart);
 
-            Mat cropped = Mat.zeros(groupImageHeight, groupImageWidth, bw.type());
+            Mat cropped = Mat.zeros(groupImageHeight + 50, groupImageWidth + 50, bw.type());
             Mat tempBWSubmat;
             Mat croppedMat;
             for (Map.Entry<MatOfPoint, Integer[]> content : submats.entrySet()){
@@ -519,7 +519,7 @@ public class ScreenRecorderService extends Service {
 
             bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(canvas, bitmap);
-            //saveImage(resized);
+            saveImage(canvas);
         }else{
             Mat canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC3);
             bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
@@ -747,8 +747,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-                                    //prepareImageAndSend(testBitmap, 240, 320);
-                                    prepareImageAndSend(originalBitmap, 240, 320);
+                                    prepareImageAndSend(testBitmap, 240, 320);
+                                    //prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){
@@ -833,7 +833,7 @@ public class ScreenRecorderService extends Service {
         } catch (IOException e) {
             e.printStackTrace();
         }*/
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.newtestimage);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.secondnewtestimage);
         testBitmap = BitmapFactory.decodeStream(is);
 
         if (!threadStarted){
