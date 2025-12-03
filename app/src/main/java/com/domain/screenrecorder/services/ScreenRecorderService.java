@@ -519,11 +519,15 @@ public class ScreenRecorderService extends Service {
 
             bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(canvas, bitmap);
-            saveImage(canvas);
+            //saveImage(canvas);
+            return bitmap;
         }else{
-            Mat canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC3);
-            bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
-            Utils.matToBitmap(canvas, bitmap);
+            Mat resized = Mat.zeros((int)targetHeight, (int)targetWidth, CvType.CV_8UC3);
+            Size size = new Size(targetWidth, targetHeight);
+            Imgproc.resize(bw, resized, size, 0, 0, Imgproc.INTER_LANCZOS4);
+            bitmap = Bitmap.createBitmap(resized.cols(), resized.rows(), Bitmap.Config.ARGB_8888);
+            Utils.matToBitmap(resized, bitmap);
+            return bitmap;
         }
 
         //Mat resizedMat = resizeMat(bw, (int)newWidth, (int)newHeight);
@@ -536,7 +540,6 @@ public class ScreenRecorderService extends Service {
         //Utils.matToBitmap(resizedMat, bitmap);
 
         //extractLines(bitmap);
-        return bitmap;
     }
 
     private Bitmap prepareImageForDisplay(Bitmap original, int targetWidth, int targetHeight) {
@@ -611,9 +614,11 @@ public class ScreenRecorderService extends Service {
 
     private void prepareImageAndSend(Bitmap bitmap, int width, int height){
         Bitmap image = prepareImageForDisplay(bitmap, width, height);
-//        saveImageToPublicDirectory(getApplicationContext(), image, "Debugging Image.jpg");
-        System.out.println("Image received.");
-        sendBytes(bitmapTo1BitArray(image));
+        if (image != null){
+    //        saveImageToPublicDirectory(getApplicationContext(), image, "Debugging Image.jpg");
+            System.out.println("Image received.");
+            sendBytes(bitmapTo1BitArray(image));
+        }
     }
 
     public ScreenRecorderService() {
@@ -747,8 +752,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-                                    prepareImageAndSend(testBitmap, 240, 320);
-                                    //prepareImageAndSend(originalBitmap, 240, 320);
+                                    //prepareImageAndSend(testBitmap, 240, 320);
+                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){
