@@ -376,6 +376,9 @@ public class ScreenRecorderService extends Service {
         Mat dilated = new Mat();
         Imgproc.dilate(bw, dilated, kernel);
 
+        int subtractingAmountX = 150 / 2;
+        int subtractingAmountY = 100 / 2;
+
 //        saveImage(dilated);
 
         List<MatOfPoint> contours = new ArrayList<>();
@@ -455,7 +458,7 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            submats.put(c, new Integer[]{imagePosX - xStart, imagePosY - yStart, imageWidth, imageHeight});
+            submats.put(c, new Integer[]{(imagePosX - xStart) + subtractingAmountX, (imagePosY - yStart), imageWidth - (subtractingAmountX * 2), imageHeight - (subtractingAmountY * 2)});
         }
 
         Bitmap bitmap;
@@ -470,12 +473,22 @@ public class ScreenRecorderService extends Service {
             Mat croppedMat;
             for (Map.Entry<MatOfPoint, Integer[]> content : submats.entrySet()){
                 org.opencv.core.Rect cropRoi = Imgproc.boundingRect(content.getKey());
+                cropRoi.x += subtractingAmountX;
+                cropRoi.y += subtractingAmountY;
+                cropRoi.width -= subtractingAmountX * 2;
+                cropRoi.height -= subtractingAmountY * 2;
                 croppedMat = new Mat(bw, cropRoi);
 
                 Integer[] imageData = content.getValue();
                 tempBWSubmat = cropped.submat(new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]));
+//                Imgproc.rectangle(cropped, new Point(imageData[0] + subtractingAmount, imageData[1] + subtractingAmountY), new Point(imageData[0] + imageData[2] - subtractingAmount, imageData[1] + imageData[3] - subtractingAmountY), new Scalar(255), 2);
+//                Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0] + subtractingAmount, imageData[1] + subtractingAmountY, imageData[2], imageData[3]), new Scalar(255), 2);
                 croppedMat.copyTo(tempBWSubmat);
+//                Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0] + subtractingAmountX, imageData[1] + subtractingAmountY, imageData[2] - subtractingAmountX * 2, imageData[3] - subtractingAmountY * 2), new Scalar(255), 2);
+                Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]), new Scalar(255), 2);
             }
+
+//            saveImage(cropped);
 
             double aspectRatio = targetWidth / (double)cropped.cols();
             double newWidth = targetWidth;
@@ -520,7 +533,8 @@ public class ScreenRecorderService extends Service {
             bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(canvas, bitmap);
             saveImage(canvas);
-        }else{
+        }
+        else{
             Mat canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC3);
             bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(canvas, bitmap);
@@ -833,7 +847,7 @@ public class ScreenRecorderService extends Service {
         } catch (IOException e) {
             e.printStackTrace();
         }*/
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.secondnewtestimage);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.thirdtestimage);
         testBitmap = BitmapFactory.decodeStream(is);
 
         if (!threadStarted){
