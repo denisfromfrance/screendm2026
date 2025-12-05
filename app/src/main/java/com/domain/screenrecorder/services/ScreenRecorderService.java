@@ -366,7 +366,8 @@ public class ScreenRecorderService extends Service {
         return resized;
     }
 
-    private Bitmap processImageAndSave(Bitmap original, int targetWidth, int targetHeight){
+    private Bitmap prepareImageForDisplay(Bitmap original, int targetWidth, int targetHeight) {
+        // 2. Resize to match your display (e.g., 96x64 or 50x50)
         Mat src = new Mat();
         Utils.bitmapToMat(original, src);
 
@@ -501,6 +502,9 @@ public class ScreenRecorderService extends Service {
             System.out.println("Cropped Cols: " + cropped.cols());
             System.out.println("Cropped Rows: " + cropped.rows());
 
+            int newPosY = (int)((targetHeight / 2) - (newHeight / 2));
+            int newPosX = (int)((targetWidth / 2) - (newWidth / 2));
+
             if (cropped.cols() > targetWidth){
                 newWidth = targetWidth;
                 newHeight = cropped.rows() * aspectRatio;
@@ -512,8 +516,20 @@ public class ScreenRecorderService extends Service {
                 newWidth = newWidth * aspectRatio;
             }
 
-            int newPosY = (int)((targetHeight / 2) - (newHeight / 2));
-            int newPosX = (int)((targetWidth / 2) - (newWidth / 2));
+            if (Components.getOrientation() == 0){
+                aspectRatio = targetHeight / (double)cropped.cols();
+                newWidth = targetHeight;
+                newHeight = cropped.rows() * aspectRatio;
+
+                if (newHeight > targetWidth){
+                    aspectRatio = targetWidth / newHeight;
+                    newHeight = targetWidth;
+                    newWidth *= aspectRatio;
+                }
+
+                newPosY = (int)((targetHeight / 2) - (newWidth / 2));
+                newPosX = (int)((targetWidth / 2) - (newHeight / 2));
+            }
 
             System.out.println("Aspect ratio: " + aspectRatio);
             System.out.println("Updated Width: " + newWidth);
@@ -526,13 +542,26 @@ public class ScreenRecorderService extends Service {
             Size size = new Size(newWidth, newHeight);
             Imgproc.resize(cropped, resized, size, 0, 0, Imgproc.INTER_LANCZOS4);
 
+//            saveImage(resized);
+
             Mat canvas = Mat.zeros(targetHeight, targetWidth, resized.type());
+            if (Components.getOrientation() == 0){
+                canvas = Mat.zeros(targetWidth, targetHeight, resized.type());
+            }
             org.opencv.core.Rect roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
             Mat targetArea = canvas.submat(roi);
             resized.copyTo(targetArea);
 
-            bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
-            Utils.matToBitmap(canvas, bitmap);
+            if (Components.getOrientation() == 0){
+                Mat rotated = new Mat();
+                Core.rotate(canvas, rotated, Core.ROTATE_90_CLOCKWISE);
+                bitmap = Bitmap.createBitmap(rotated.cols(), rotated.rows(), Bitmap.Config.ARGB_8888);
+                Utils.matToBitmap(rotated, bitmap);
+//                saveImage(rotated);
+            }else{
+                bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
+                Utils.matToBitmap(canvas, bitmap);
+            }
 //            saveImage(canvas);
         }
         else{
@@ -552,11 +581,6 @@ public class ScreenRecorderService extends Service {
 
         //extractLines(bitmap);
         return bitmap;
-    }
-
-    private Bitmap prepareImageForDisplay(Bitmap original, int targetWidth, int targetHeight) {
-        // 2. Resize to match your display (e.g., 96x64 or 50x50)
-        return processImageAndSave(original, targetWidth, targetHeight);
     }
 
 
@@ -762,8 +786,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-                                    //prepareImageAndSend(testBitmap, 240, 320);
-                                    prepareImageAndSend(originalBitmap, 240, 320);
+                                    prepareImageAndSend(testBitmap, 240, 320);
+//                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){

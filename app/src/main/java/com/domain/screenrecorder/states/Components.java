@@ -16,6 +16,8 @@ public class Components {
     private static TextView connectionStatus;
     private static View connectionStatusIcon;
 
+    private static int orientation;
+
     private static ImagePullThread imagePullThread;
 
     private static Context applicationContext;
@@ -69,5 +71,13 @@ public class Components {
                 }
             }
         });
+    }
+
+    public static void setOrientation(int screenOrientation){
+        orientation = screenOrientation;
+    }
+
+    public static int getOrientation(){
+        return orientation;
     }
 }
