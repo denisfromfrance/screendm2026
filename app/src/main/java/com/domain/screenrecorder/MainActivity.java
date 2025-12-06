@@ -128,6 +128,8 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
+        Components.setOrientation(1);
     }
 
     @Override
