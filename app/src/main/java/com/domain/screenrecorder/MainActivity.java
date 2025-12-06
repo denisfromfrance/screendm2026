@@ -55,8 +55,8 @@ public class MainActivity extends AppCompatActivity {
         connectionStatus = findViewById(R.id.connectionstatus);
         connectionStatusIcon = findViewById(R.id.connectionstatusicon);
 
-        Toolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+//        Toolbar toolbar = findViewById(R.id.toolbar);
+//        setSupportActionBar(toolbar);
 
         imagePullThread = new ImagePullThread();
         OpenCVLoader.initLocal();
@@ -70,15 +70,29 @@ public class MainActivity extends AppCompatActivity {
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
         Button startButton = findViewById(R.id.startButton);
+        startButton.setBackgroundColor(Color.parseColor("#0088FF"));
+        startButton.setTextColor(Color.WHITE);
+        Button stopButton = findViewById(R.id.stopButton);
+        stopButton.setBackgroundColor(Color.parseColor("#AA0000"));
+        stopButton.setTextColor(Color.WHITE);
+        stopButton.setEnabled(false);
+
         startButton.setOnClickListener(v -> {
             Intent intent = projectionManager.createScreenCaptureIntent();
             startActivityForResult(intent, REQUEST_CODE);
+            startButton.setBackgroundColor(Color.parseColor("#0044AA"));
+            stopButton.setBackgroundColor(Color.parseColor("#FF0000"));
+            startButton.setEnabled(false);
+            stopButton.setEnabled(true);
         });
 
-        Button stopButton = findViewById(R.id.stopButton);
         stopButton.setOnClickListener(v -> {
             Intent intent = new Intent(this, ScreenRecorderService.class);
             stopService(intent);
+            startButton.setBackgroundColor(Color.parseColor("#0088FF"));
+            stopButton.setBackgroundColor(Color.parseColor("#AA0000"));
+            startButton.setEnabled(true);
+            stopButton.setEnabled(false);
         });
 
         MaterialButton portraitToggleButton = findViewById(R.id.portrait);
@@ -147,7 +161,7 @@ public class MainActivity extends AppCompatActivity {
 
         Components.setOrientation(1);
         //Drawable largeIcon = resize(R.mipmap.app_logo_round, 3);
-        toolbar.setNavigationIcon(R.mipmap.app_logo_round);
+//        toolbar.setNavigationIcon(R.mipmap.app_logo_round);
     }
 
     @Override
