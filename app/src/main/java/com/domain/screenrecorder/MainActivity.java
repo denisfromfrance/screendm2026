@@ -2,11 +2,15 @@ package com.domain.screenrecorder;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.media.projection.MediaProjectionManager;
 import android.os.Build;
@@ -36,12 +40,23 @@ public class MainActivity extends AppCompatActivity {
 
     ImagePullThread imagePullThread;
 
+    private Drawable resize(int drawableRes, double scaleFactor){
+        Bitmap original = BitmapFactory.decodeResource(getResources(), drawableRes);
+        int newWidth = (int)(original.getWidth() * scaleFactor);
+        int newHeight = (int)(original.getHeight() * scaleFactor);
+        Bitmap scaled = Bitmap.createScaledBitmap(original, newWidth, newHeight, true);
+        return new BitmapDrawable(getResources(), scaled);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         connectionStatus = findViewById(R.id.connectionstatus);
         connectionStatusIcon = findViewById(R.id.connectionstatusicon);
+
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
 
         imagePullThread = new ImagePullThread();
         OpenCVLoader.initLocal();
@@ -50,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
         Components.setConnectionStatus(connectionStatus);
         Components.setConnectionStatusIcon(connectionStatusIcon);
         Components.setThread(imagePullThread);
+        Components.setOrientation(1);
 
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
@@ -130,6 +146,8 @@ public class MainActivity extends AppCompatActivity {
         });
 
         Components.setOrientation(1);
+        //Drawable largeIcon = resize(R.mipmap.app_logo_round, 3);
+        toolbar.setNavigationIcon(R.mipmap.app_logo_round);
     }
 
     @Override
