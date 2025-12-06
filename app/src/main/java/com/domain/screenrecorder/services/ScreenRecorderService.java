@@ -433,8 +433,8 @@ public class ScreenRecorderService extends Service {
                     xEnd += r.width;
                 } else {
                     imagePosX = r.x;
-                    if (r.width > xEnd) {
-                        xEnd += (r.width - xEnd);
+                    if (r.x + r.width > xEnd) {
+                        xEnd += (r.x + r.width - xEnd);
                     }
                 }
             }
@@ -451,7 +451,7 @@ public class ScreenRecorderService extends Service {
                 if (r.y < yEnd) {
                     imagePosY = r.y;
                     if (r.y + r.height > yEnd) {
-                        yEnd += (r.y + r.height) - yEnd;
+                        yEnd += ((r.y + r.height) - yEnd);
                     }
                 } else {
                     imagePosY = yEnd;
@@ -537,6 +537,14 @@ public class ScreenRecorderService extends Service {
 
             System.out.println("New Pos X: " + newPosX);
             System.out.println("New Pos Y: " + newPosY);
+
+            if (newPosX  < 0){
+                newPosX = 0;
+            }
+
+            if (newPosY < 0){
+                newPosY = 0;
+            }
 
             Mat resized = Mat.zeros((int)newHeight, (int)newWidth, CvType.CV_8UC3);
             Size size = new Size(newWidth, newHeight);
@@ -786,8 +794,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-                                    prepareImageAndSend(testBitmap, 240, 320);
-//                                    prepareImageAndSend(originalBitmap, 240, 320);
+                                    //prepareImageAndSend(testBitmap, 240, 320);
+                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){
