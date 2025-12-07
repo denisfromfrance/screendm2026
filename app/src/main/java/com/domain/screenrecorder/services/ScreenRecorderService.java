@@ -532,7 +532,7 @@ public class ScreenRecorderService extends Service {
                 croppedMat.copyTo(tempBWSubmat);
 //                Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0] + subtractingAmountX, imageData[1] + subtractingAmountY, imageData[2] - subtractingAmountX * 2, imageData[3] - subtractingAmountY * 2), new Scalar(255), 2);
 
-                Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]), new Scalar(255), 2);
+                //Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]), new Scalar(255), 2);
             }
 
 //            saveImage(cropped);
@@ -615,7 +615,7 @@ public class ScreenRecorderService extends Service {
                 bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
                 Utils.matToBitmap(canvas, bitmap);
             }
-            saveImage(canvas);
+            //saveImage(canvas);
         }
         else{
             Mat canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC3);
@@ -660,6 +660,7 @@ public class ScreenRecorderService extends Service {
         int chunkSize = 2048;
         int totalChunks = (int)Math.ceil(bytes.length / (double)chunkSize);
         String header = "IMG " + totalChunks + " " + bytes.length + '\n';
+
         System.out.println("Sending header and data!");
         System.out.println("Total Chunks sending " + totalChunks + " of size " + chunkSize);
         if (outputStream != null){
