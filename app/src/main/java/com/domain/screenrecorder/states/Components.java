@@ -16,6 +16,8 @@ public class Components {
     private static TextView connectionStatus;
     private static View connectionStatusIcon;
 
+    private static int connectionStatusCode = 0;
+
     private static int orientation;
 
     private static ImagePullThread imagePullThread;
@@ -50,6 +52,8 @@ public class Components {
 
 
     public static void setConnectionStatus(int isConnected){
+        connectionStatusCode = isConnected;
+
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
             public void run() {
@@ -71,6 +75,10 @@ public class Components {
                 }
             }
         });
+    }
+
+    public static int getConnectionStatus(){
+        return connectionStatusCode;
     }
 
     public static void setOrientation(int screenOrientation){

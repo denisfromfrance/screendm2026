@@ -660,11 +660,24 @@ public class ScreenRecorderService extends Service {
         int chunkSize = 2048;
         int totalChunks = (int)Math.ceil(bytes.length / (double)chunkSize);
         String header = "IMG " + totalChunks + " " + bytes.length + '\n';
+        String connectionHeader = "SCS: ";
+        int connectionStatus = Components.getConnectionStatus();
+        if (connectionStatus == 1){
+            connectionHeader = connectionHeader.concat("S");
+        }else if(connectionStatus == 0){
+            connectionHeader = connectionHeader.concat("D");
+        }else{
+            connectionHeader = connectionHeader.concat("F");
+        }
+
+        connectionHeader = connectionHeader.concat("\n");
 
         System.out.println("Sending header and data!");
         System.out.println("Total Chunks sending " + totalChunks + " of size " + chunkSize);
         if (outputStream != null){
             try {
+                outputStream.write(connectionHeader.getBytes(StandardCharsets.UTF_8));
+                outputStream.flush();
                 outputStream.write(header.getBytes(StandardCharsets.UTF_8));
                 outputStream.flush();
 
