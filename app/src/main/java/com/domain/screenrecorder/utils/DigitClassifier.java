@@ -1,5 +1,5 @@
 package com.domain.screenrecorder.utils;
-/*
+
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import org.opencv.core.Mat;
@@ -10,6 +10,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.Arrays;
 
 public class DigitClassifier {
 
@@ -18,7 +19,7 @@ public class DigitClassifier {
     public DigitClassifier(Context context) throws IOException {
         Interpreter.Options options = new Interpreter.Options();
         options.setNumThreads(4); // adjust based on device
-        interpreter = new Interpreter(loadModelFile(context, "mnist_model_backup.tflite"), options);
+        interpreter = new Interpreter(loadModelFile(context, "dcmV3Release.tflite"), options);
     }
 
     private ByteBuffer loadModelFile(Context context, String modelName) throws IOException {
@@ -31,18 +32,18 @@ public class DigitClassifier {
     }
 
     // Preprocess image: resize to 28x28, grayscale, normalize to [0,1]
-    private float[][][][] preprocess(Mat inputMat) {
+    private float[][][] preprocess(Mat inputMat) {
 //        Mat gray = new Mat();
 //        Imgproc.cvtColor(inputMat, gray, Imgproc.COLOR_BGR2GRAY);
 
 //        Mat resized = new Mat();
 //        Imgproc.resize(inputMat, resized, new Size(28, 28));
 
-        float[][][][] input = new float[1][28][28][1];
+        float[][][] input = new float[1][28][28];
         for (int y = 0; y < 28; y++) {
             for (int x = 0; x < 28; x++) {
                 double pixel = inputMat.get(y, x)[0];
-                input[0][y][x][0] = (float) (pixel / 255.0); // normalize
+                input[0][y][x] = (float) (pixel / 255.0); // normalize
             }
         }
         return input;
@@ -51,7 +52,9 @@ public class DigitClassifier {
     // Predict digit
     public int classify(Mat digitMat) {
         float[][] output = new float[1][10]; // 10 classes: 0-9
-        float[][][][] input = preprocess(digitMat);
+        float[][][] input = preprocess(digitMat);
+
+        System.out.println(Arrays.toString(interpreter.getInputTensor(0).shape()));
 
         interpreter.run(input, output);
 
@@ -66,4 +69,4 @@ public class DigitClassifier {
         }
         return best;
     }
-}*/
+}

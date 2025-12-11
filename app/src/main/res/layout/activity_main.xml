@@ -75,6 +75,7 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/linearLayout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -90,16 +91,16 @@
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/toggle_button_group"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:id="@+id/toggle_button_group">
+                android:layout_height="wrap_content">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/portrait"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:checkable="true"
                     android:layout_weight="1"
+                    android:checkable="true"
                     app:icon="@drawable/ic_portrait"
                     app:iconGravity="textTop"
                     app:iconSize="24dp" />
@@ -111,11 +112,11 @@
                     android:text="Display Orientation" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/landscape"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:id="@+id/landscape"
-                    android:checkable="true"
                     android:layout_weight="1"
+                    android:checkable="true"
                     app:icon="@drawable/ic_landscape"
                     app:iconGravity="textTop"
                     app:iconSize="24dp" />
@@ -124,5 +125,15 @@
         </LinearLayout>
 
     </LinearLayout>
+
+    <Switch
+        android:id="@+id/detectNumbers"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Detect Numbers"
+        app:layout_constraintBottom_toTopOf="@+id/startButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/linearLayout" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
