@@ -83,6 +83,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -198,7 +199,7 @@ public class ScreenRecorderService extends Service {
     }
 
     private List<MatOfPoint> getContours(Mat blackAndWhiteMat, boolean isChar){
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(isChar ? 8 : 50, 5));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(isChar ? 4 : 50, 5));
         Mat dilated = Mat.zeros(blackAndWhiteMat.rows(), blackAndWhiteMat.cols(), blackAndWhiteMat.type());
         Imgproc.dilate(blackAndWhiteMat, dilated, kernel);
 
@@ -313,13 +314,19 @@ public class ScreenRecorderService extends Service {
         Bitmap croppedPortion;
         Mat resized;
         Size size;
-        int recommendedSize = 28;
+        int recommendedSize = 32;
         int height = 0;
         int width = 0;
         double aspectRatio = 0;
         Mat tempMat;
 
         boundingBoxes = boundingBoxes.stream().filter(rect -> rect.height > 5).collect(Collectors.toList());
+        boundingBoxes = boundingBoxes.stream().sorted(new Comparator<org.opencv.core.Rect>() {
+            @Override
+            public int compare(org.opencv.core.Rect o1, org.opencv.core.Rect o2) {
+                return Math.min(o1.x, o2.x);
+            }
+        }).collect(Collectors.toList());
 
         StringBuilder stringBuilder = new StringBuilder();
         System.out.println("Chars found: " + boundingBoxes.size());
@@ -328,7 +335,7 @@ public class ScreenRecorderService extends Service {
             if (boundingBox.height > 5) {
                 mat = bw.submat(boundingBox);
 //                Imgproc.rectangle(bw, boundingBox, new Scalar(255), 2);
-
+//                saveImage(mat);
                 width = mat.cols();
                 height = mat.rows();
 
@@ -354,18 +361,23 @@ public class ScreenRecorderService extends Service {
 
 
 //            Imgproc.resize(mat, resized, size, 0, 0, Imgproc.INTER_LANCZOS4);
+                String type = digitClassifier.getType(tempMat);
+//                System.out.println("Type: " + type);
+                if (!type.equals("-")) {
+                    int classifiedDigit = digitClassifier.classify(tempMat);
+                    numbersMap.put(boundingBox.x, String.valueOf(classifiedDigit));
+                    System.out.println("Classified Digit: " + classifiedDigit);
+                    Imgproc.putText(tempMat, String.valueOf(classifiedDigit), new Point(10, 10), Imgproc.FONT_HERSHEY_PLAIN, 1.0D, new Scalar(255), 2);
+                }
 
-                saveImage(tempMat);
-
-                int classifiedDigit = digitClassifier.classify(tempMat);
-                numbersMap.put(boundingBox.x, String.valueOf(classifiedDigit));
-                System.out.println("Classified Digit: " + classifiedDigit);
+//                saveImage(tempMat);
 
 //            int classifiedNumber = resizeToFixedSize(28, 28, resized);
             }
         }
 
-        for (Map.Entry<Integer, String> entry : numbersMap.entrySet()){
+        Map<Integer, String> sortedMap = new TreeMap<>(numbersMap);
+        for (Map.Entry<Integer, String> entry : sortedMap.entrySet()){
             stringBuilder.append(entry.getValue());
         }
 
@@ -379,6 +391,7 @@ public class ScreenRecorderService extends Service {
 //        saveImage(bw);
         List<MatOfPoint> contours = getContours(bw, false);
         List<org.opencv.core.Rect> boundingBoxes = getBoundingBoxes(contours);
+        Collections.reverse(boundingBoxes);
         System.out.println("Lines found: " + boundingBoxes.size());
 
 //        saveImage(bw.submat(boundingBoxes.get(0)));
@@ -397,13 +410,18 @@ public class ScreenRecorderService extends Service {
         int total = 0;
         for (org.opencv.core.Rect boundingBox : boundingBoxes){
             Mat mat = bw.submat(boundingBox);
-//            saveImage(mat);
 //            Imgproc.rectangle(bw, boundingBox, new Scalar(255), 2);
             String number = extractChar(mat);
-            System.out.println("Extracted Number: " + number);
-//            int n = Integer.parseInt(number);
-//            numberList.add(n);
-//            total += n;
+            try {
+                System.out.println("Extracted Number: " + number);
+//            saveImage(mat);
+                int n = Integer.parseInt(number);
+                numberList.add(n);
+                total += n;
+            }catch(Exception exception){
+                exception.printStackTrace();
+            }
+
         }
 //        saveImage(bw);
 
@@ -903,8 +921,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-                                    prepareImageAndSend(testBitmap, 240, 320);
-//                                    prepareImageAndSend(originalBitmap, 240, 320);
+//                                    prepareImageAndSend(testBitmap, 240, 320);
+                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){
