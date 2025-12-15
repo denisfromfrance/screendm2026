@@ -344,7 +344,7 @@ public class ScreenRecorderService extends Service {
                 int originalHeight = boundingBox.height;
 
                 org.opencv.core.Rect rectFormCharsInOriginal = new org.opencv.core.Rect(originalX, originalY, originalWidth, originalHeight);
-                Imgproc.rectangle(original, rectFormCharsInOriginal, new Scalar(255), 2);
+//                Imgproc.rectangle(original, rectFormCharsInOriginal, new Scalar(255), 2);
 //                saveImage(original);
 
                 width = mat.cols();
@@ -468,7 +468,8 @@ public class ScreenRecorderService extends Service {
         int thickness = 2;
         Size textSize = Imgproc.getTextSize(String.valueOf(total), font, fontScale, thickness, null);
         int x = (int)((src.cols() - textSize.width) / 2);
-        Imgproc.putText(mat, String.valueOf(total), new Point(x, 0), font, fontScale, new Scalar(255), thickness);
+        int y = 30;
+        Imgproc.putText(mat, String.valueOf(total), new Point(x, y), font, fontScale, new Scalar(255), thickness);
 
         System.out.println("Numbers: " + Arrays.toString(numberList.toArray()));
         System.out.println("Total: " + total);
@@ -646,14 +647,6 @@ public class ScreenRecorderService extends Service {
                 //Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]), new Scalar(255), 2);
             }
 
-            Mat result = extractLines(cropped);
-            List<Mat> mats = new ArrayList<>();
-            mats.add(cropped);
-            mats.add(result);
-            cropped = new Mat();
-            Core.vconcat(mats, cropped);
-//            saveImage(cropped);
-
             double aspectRatio = targetWidth / (double)cropped.cols();
             double newWidth = targetWidth;
             double newHeight = cropped.rows() * aspectRatio;
@@ -732,7 +725,17 @@ public class ScreenRecorderService extends Service {
                 bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
                 Utils.matToBitmap(canvas, bitmap);
             }
-            //saveImage(canvas);
+
+            Mat result = extractLines(canvas);
+            org.opencv.core.Rect answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows() + 10, result.cols(), result.rows());
+            result.copyTo(canvas.submat(answerPositionRect));
+            List<Mat> mats = new ArrayList<>();
+//            mats.add(canvas);
+//            mats.add(result);
+//            Mat output = new Mat();
+//            Core.vconcat(mats, output);
+//            saveImage(output);
+//            saveImage(canvas);
         }
         else{
             Mat canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC3);
