@@ -97,12 +97,13 @@ public class ScreenRecorderService extends Service {
     private MediaProjectionManager projectionManager;
     private MediaRecorder mediaRecorder;
     //private VirtualDisplay virtualDisplay;
-
     private DigitClassifier digitClassifier;
 
     private static int WIDTH = 1080;
     private static int HEIGHT = 1920;
     private static int DPI = 320;
+
+    private long total = 0;
 
     private SurfaceTexture captureTexture;
     private Surface captureSurface;
@@ -395,7 +396,7 @@ public class ScreenRecorderService extends Service {
         return stringBuilder.toString();
     }
 
-    private void extractLines(Mat src){
+    private Mat extractLines(Mat src){
 //        Mat bw = convertToBlackAndWhite(src);
         Mat bw = src.clone();
 //        saveImage(bw);
@@ -434,24 +435,26 @@ public class ScreenRecorderService extends Service {
             String number = extractChar(mat, src, boundingBox);
             try {
                 System.out.println("Extracted Number: " + number);
-                int n = Integer.parseInt(number);
-                switch (numberList.size()) {
-                    case 0:
-                        total = n;
-                        break;
-                    case 1:
-                        total += n;
-                        break;
-                    case 2:
-                        total -= n;
-                        break;
-                    case 3:
-                        total *= n;
-                        break;
-                    default:
-                        break;
+                if (!number.equals("")){
+                    int n = Integer.parseInt(number);
+                    switch (numberList.size()) {
+                        case 0:
+                            total = n;
+                            break;
+                        case 1:
+                            total += n;
+                            break;
+                        case 2:
+                            total -= n;
+                            break;
+                        case 3:
+                            total *= n;
+                            break;
+                        default:
+                            break;
+                    }
+                    numberList.add(n);
                 }
-                numberList.add(n);
             }catch(Exception exception){
                 exception.printStackTrace();
             }
@@ -459,9 +462,21 @@ public class ScreenRecorderService extends Service {
         }
 //        saveImage(bw);
 
+        Mat mat = Mat.zeros(32, src.cols(), CvType.CV_8UC1);
+        int font = Imgproc.FONT_HERSHEY_SIMPLEX;
+        double fontScale = 0.7;
+        int thickness = 2;
+        Size textSize = Imgproc.getTextSize(String.valueOf(total), font, fontScale, thickness, null);
+        int x = (int)((src.cols() - textSize.width) / 2);
+        Imgproc.putText(mat, String.valueOf(total), new Point(x, 0), font, fontScale, new Scalar(255), thickness);
+
         System.out.println("Numbers: " + Arrays.toString(numberList.toArray()));
         System.out.println("Total: " + total);
+        this.total = total;
+        return mat;
     }
+
+
 
     private Mat resizeMat(Mat inputMat, int newWidth, int newHeight){
         Mat resized = new Mat((int)newHeight, (int)newWidth, CvType.CV_8UC3);
@@ -596,7 +611,6 @@ public class ScreenRecorderService extends Service {
 
 //            System.out.println("Group Image Width: " + groupImageWidth);
 //            System.out.println("Group Image Height: " + groupImageHeight);
-
 //            System.out.println("Original image size: " + bw.cols() + "x" + bw.rows());
 
             Mat cropped = Mat.zeros(groupImageHeight, groupImageWidth, bw.type());
@@ -614,7 +628,6 @@ public class ScreenRecorderService extends Service {
                 cropRoi.width = imageData[2];
                 cropRoi.height = imageData[3];
 //                cropRoi.width -= subtractingAmountX * 2;
-
 //                if(cropRoi.height > subtractingAmountY * 2) {
 //                    cropRoi.height -= subtractingAmountY * 2;
 //                }
@@ -633,6 +646,12 @@ public class ScreenRecorderService extends Service {
                 //Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]), new Scalar(255), 2);
             }
 
+            Mat result = extractLines(cropped);
+            List<Mat> mats = new ArrayList<>();
+            mats.add(cropped);
+            mats.add(result);
+            cropped = new Mat();
+            Core.vconcat(mats, cropped);
 //            saveImage(cropped);
 
             double aspectRatio = targetWidth / (double)cropped.cols();
@@ -713,9 +732,7 @@ public class ScreenRecorderService extends Service {
                 bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
                 Utils.matToBitmap(canvas, bitmap);
             }
-
-            saveImage(canvas);
-            extractLines(canvas);
+            //saveImage(canvas);
         }
         else{
             Mat canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC3);
@@ -771,7 +788,10 @@ public class ScreenRecorderService extends Service {
 
         connectionHeader = connectionHeader.concat("\n");
 
+        String calculationResult = "TOTAL: " + this.total + "\n";
+
         System.out.println("Sending header and data!");
+        System.out.println("Calculation Result: " + calculationResult);
         System.out.println("Total Chunks sending " + totalChunks + " of size " + chunkSize);
         if (outputStream != null){
             try {
@@ -779,14 +799,17 @@ public class ScreenRecorderService extends Service {
                 outputStream.flush();
                 outputStream.write(header.getBytes(StandardCharsets.UTF_8));
                 outputStream.flush();
+                outputStream.write(calculationResult.getBytes(StandardCharsets.UTF_8));
+                outputStream.flush();
 
                 for (int i = 0; i < totalChunks; i++){
                     int start = i * chunkSize;
                     int length = Math.min(chunkSize, bytes.length - start);
                     outputStream.write(bytes, start, length);
-                    System.out.println(Arrays.toString(Arrays.copyOfRange(bytes, 0, 50)));
+                    //System.out.println(Arrays.toString(Arrays.copyOfRange(bytes, 0, 50)));
                     outputStream.flush();
                 }
+
             }catch(IOException exception){
                 exception.printStackTrace();
                 try{
@@ -956,8 +979,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-//                                    prepareImageAndSend(testBitmap, 240, 320);
-                                    prepareImageAndSend(originalBitmap, 240, 320);
+                                    prepareImageAndSend(testBitmap, 240, 320);
+                                    //prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){
@@ -1017,6 +1040,7 @@ public class ScreenRecorderService extends Service {
                     //socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                     outputStream = socket.getOutputStream();
                     Components.setConnectionStatus(1);
+                    System.out.println("Connected to the server");
                 } catch (IOException exception) {
                     exception.printStackTrace();
                 }
