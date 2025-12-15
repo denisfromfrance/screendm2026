@@ -24,10 +24,20 @@ public class Components {
 
     private static Context applicationContext;
 
+    private static boolean doCalculation = false;
+
     public static void setApplicationContext(Context context){
         if (applicationContext == null){
             applicationContext = context;
         }
+    }
+
+    public static boolean isDoCalculation() {
+        return doCalculation;
+    }
+
+    public static void setDoCalculation(boolean doCalculation) {
+        Components.doCalculation = doCalculation;
     }
 
     public static void setConnectionStatus(TextView textView){

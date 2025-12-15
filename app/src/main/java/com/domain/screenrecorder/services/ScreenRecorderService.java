@@ -715,6 +715,14 @@ public class ScreenRecorderService extends Service {
             Mat targetArea = canvas.submat(roi);
             resized.copyTo(targetArea);
 
+            if (Components.isDoCalculation()){
+                Mat result = extractLines(canvas);
+                if (newPosY > 0 && result.cols() <= resized.cols() && newPosY + resized.rows() + result.rows() < canvas.rows()){
+                    org.opencv.core.Rect answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows(), result.cols(), result.rows());
+                    result.copyTo(canvas.submat(answerPositionRect));
+                }
+            }
+
             if (Components.getOrientation() == 0){
                 Mat rotated = new Mat();
                 Core.rotate(canvas, rotated, Core.ROTATE_90_CLOCKWISE);
@@ -726,10 +734,8 @@ public class ScreenRecorderService extends Service {
                 Utils.matToBitmap(canvas, bitmap);
             }
 
-            Mat result = extractLines(canvas);
-            org.opencv.core.Rect answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows() + 10, result.cols(), result.rows());
-            result.copyTo(canvas.submat(answerPositionRect));
-            List<Mat> mats = new ArrayList<>();
+
+            //List<Mat> mats = new ArrayList<>();
 //            mats.add(canvas);
 //            mats.add(result);
 //            Mat output = new Mat();
@@ -816,6 +822,7 @@ public class ScreenRecorderService extends Service {
             }catch(IOException exception){
                 exception.printStackTrace();
                 try{
+                    Components.setConnectionStatus(0);
                     outputStream.close();
                     connectToServer();
 
@@ -982,8 +989,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-                                    prepareImageAndSend(testBitmap, 240, 320);
-                                    //prepareImageAndSend(originalBitmap, 240, 320);
+                                   // prepareImageAndSend(testBitmap, 240, 320);
+                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){

@@ -19,6 +19,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CompoundButton;
+import android.widget.Switch;
 import android.widget.TextView;
 
 import com.domain.screenrecorder.services.ScreenRecorderService;
@@ -39,6 +41,8 @@ public class MainActivity extends AppCompatActivity {
     View connectionStatusIcon;
 
     ImagePullThread imagePullThread;
+
+    Switch detectNumbers;
 
     private Drawable resize(int drawableRes, double scaleFactor){
         Bitmap original = BitmapFactory.decodeResource(getResources(), drawableRes);
@@ -68,6 +72,14 @@ public class MainActivity extends AppCompatActivity {
         Components.setOrientation(1);
 
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+
+        detectNumbers = findViewById(R.id.detectNumbers);
+        detectNumbers.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                Components.setDoCalculation(b);
+            }
+        });
 
         Button startButton = findViewById(R.id.startButton);
         startButton.setBackgroundColor(Color.parseColor("#0088FF"));
