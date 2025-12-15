@@ -88,6 +88,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -199,7 +200,7 @@ public class ScreenRecorderService extends Service {
     }
 
     private List<MatOfPoint> getContours(Mat blackAndWhiteMat, boolean isChar){
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(isChar ? 4 : 50, 5));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(isChar ? 8 : 50, 5));
         Mat dilated = Mat.zeros(blackAndWhiteMat.rows(), blackAndWhiteMat.cols(), blackAndWhiteMat.type());
         Imgproc.dilate(blackAndWhiteMat, dilated, kernel);
 
@@ -304,9 +305,10 @@ public class ScreenRecorderService extends Service {
         return classifiedDigit;
     }
 
-    private String extractChar(Mat input){
+    private String extractChar(Mat input, Mat original, org.opencv.core.Rect lineRect){
         Mat bw = input.clone();
 //        saveImage(bw);
+//        List<MatOfPoint> tempContours = getContours(input, true);
         List<MatOfPoint> contours = getContours(input, true);
         List<org.opencv.core.Rect> boundingBoxes = getBoundingBoxes(contours);
 
@@ -334,8 +336,16 @@ public class ScreenRecorderService extends Service {
         for (org.opencv.core.Rect boundingBox : boundingBoxes) {
             if (boundingBox.height > 5) {
                 mat = bw.submat(boundingBox);
-//                Imgproc.rectangle(bw, boundingBox, new Scalar(255), 2);
-//                saveImage(mat);
+
+                int originalX = lineRect.x + boundingBox.x;
+                int originalY = lineRect.y + boundingBox.y;
+                int originalWidth = boundingBox.width;
+                int originalHeight = boundingBox.height;
+
+                org.opencv.core.Rect rectFormCharsInOriginal = new org.opencv.core.Rect(originalX, originalY, originalWidth, originalHeight);
+                Imgproc.rectangle(original, rectFormCharsInOriginal, new Scalar(255), 2);
+//                saveImage(original);
+
                 width = mat.cols();
                 height = mat.rows();
 
@@ -392,6 +402,11 @@ public class ScreenRecorderService extends Service {
         List<MatOfPoint> contours = getContours(bw, false);
         List<org.opencv.core.Rect> boundingBoxes = getBoundingBoxes(contours);
         Collections.reverse(boundingBoxes);
+
+        // remove last element when calculations needs to be done with detected numbers
+        if (boundingBoxes.size() == 5) {
+            boundingBoxes.remove(boundingBoxes.size() - 1);
+        }
         System.out.println("Lines found: " + boundingBoxes.size());
 
 //        saveImage(bw.submat(boundingBoxes.get(0)));
@@ -407,17 +422,36 @@ public class ScreenRecorderService extends Service {
         double aspectRatio = 0;
 
         ArrayList<Integer> numberList = new ArrayList<>();
-        int total = 0;
+        long total = 0;
         for (org.opencv.core.Rect boundingBox : boundingBoxes){
+            boundingBox.width -= 50;
+            boundingBox.x += 25;
             Mat mat = bw.submat(boundingBox);
+
 //            Imgproc.rectangle(bw, boundingBox, new Scalar(255), 2);
-            String number = extractChar(mat);
+//            saveImage(mat);
+
+            String number = extractChar(mat, src, boundingBox);
             try {
                 System.out.println("Extracted Number: " + number);
-//            saveImage(mat);
                 int n = Integer.parseInt(number);
+                switch (numberList.size()) {
+                    case 0:
+                        total = n;
+                        break;
+                    case 1:
+                        total += n;
+                        break;
+                    case 2:
+                        total -= n;
+                        break;
+                    case 3:
+                        total *= n;
+                        break;
+                    default:
+                        break;
+                }
                 numberList.add(n);
-                total += n;
             }catch(Exception exception){
                 exception.printStackTrace();
             }
@@ -453,7 +487,7 @@ public class ScreenRecorderService extends Service {
 
 //        saveImage(bwBackup);
 
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(150, 100));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 100));
         Mat dilated = new Mat();
         Imgproc.dilate(bw, dilated, kernel);
 
@@ -679,7 +713,8 @@ public class ScreenRecorderService extends Service {
                 bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
                 Utils.matToBitmap(canvas, bitmap);
             }
-//            saveImage(canvas);
+
+            saveImage(canvas);
             extractLines(canvas);
         }
         else{
@@ -766,7 +801,7 @@ public class ScreenRecorderService extends Service {
                             int start = i * chunkSize;
                             int length = Math.min(chunkSize, bytes.length - start);
                             outputStream.write(bytes, start, length);
-                            System.out.println(Arrays.toString(Arrays.copyOfRange(bytes, 0, 50)));
+//                            System.out.println(Arrays.toString(Arrays.copyOfRange(bytes, 0, 50)));
                             outputStream.flush();
                         }
                     }catch(IOException e){
@@ -978,11 +1013,9 @@ public class ScreenRecorderService extends Service {
             @Override
             public void run() {
                 try {
-                    socket = new Socket();
                     socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
                     //socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                     outputStream = socket.getOutputStream();
-
                     Components.setConnectionStatus(1);
                 } catch (IOException exception) {
                     exception.printStackTrace();
@@ -1015,8 +1048,11 @@ public class ScreenRecorderService extends Service {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.examplenumbers);
+
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.correctnumberrepresentation);
         testBitmap = BitmapFactory.decodeStream(is);
+
+        socket = new Socket();
 
         if (!threadStarted){
             connectToServer();
