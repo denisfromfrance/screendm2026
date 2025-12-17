@@ -733,17 +733,6 @@ public class ScreenRecorderService extends Service {
                 bitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
                 Utils.matToBitmap(canvas, bitmap);
             }
-
-//            saveImageToPublicDirectory(getApplicationContext(), bitmap, "UpdateImage.jpg");
-
-
-            //List<Mat> mats = new ArrayList<>();
-//            mats.add(canvas);
-//            mats.add(result);
-//            Mat output = new Mat();
-//            Core.vconcat(mats, output);
-//            saveImage(output);
-//            saveImage(canvas);
         }
         else{
             Mat canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC3);
@@ -851,7 +840,7 @@ public class ScreenRecorderService extends Service {
 
     private void prepareImageAndSend(Bitmap bitmap, int width, int height){
         Bitmap image = prepareImageForDisplay(bitmap, width, height);
-//        saveImageToPublicDirectory(getApplicationContext(), image, "Debugging Image.jpg");
+        saveImageToPublicDirectory(getApplicationContext(), image, String.format("Debugging Image %s.jpg", new Date().getTime()));
         System.out.println("Image received.");
         sendBytes(bitmapTo1BitArray(image));
     }
