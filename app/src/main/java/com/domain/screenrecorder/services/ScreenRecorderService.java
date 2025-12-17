@@ -734,6 +734,8 @@ public class ScreenRecorderService extends Service {
                 Utils.matToBitmap(canvas, bitmap);
             }
 
+//            saveImageToPublicDirectory(getApplicationContext(), bitmap, "UpdateImage.jpg");
+
 
             //List<Mat> mats = new ArrayList<>();
 //            mats.add(canvas);
@@ -989,7 +991,7 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-                                   // prepareImageAndSend(testBitmap, 240, 320);
+//                                    prepareImageAndSend(testBitmap, 240, 320);
                                     prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
@@ -1083,7 +1085,7 @@ public class ScreenRecorderService extends Service {
             e.printStackTrace();
         }
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.correctnumberrepresentation);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.letterstest);
         testBitmap = BitmapFactory.decodeStream(is);
 
         socket = new Socket();
