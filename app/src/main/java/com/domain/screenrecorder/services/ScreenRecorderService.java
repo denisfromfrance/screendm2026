@@ -183,7 +183,7 @@ public class ScreenRecorderService extends Service {
 //        Imgproc.medianBlur(gray, gray, 3);
 
         Mat bw = new Mat();
-        Imgproc.threshold(gray, bw, 50, 255, Imgproc.THRESH_BINARY);
+        Imgproc.threshold(gray, bw, 0, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
 
 //        saveImage(bw);
 
@@ -545,7 +545,7 @@ public class ScreenRecorderService extends Service {
         rightArea.setTo(new Scalar(0));
 
 //        bw = cleanMat(bw);
-//        saveImage(bw);
+        //saveImage(bw);
 
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 60));
         Mat dilated = new Mat();
@@ -767,7 +767,7 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            saveImage(canvas);
+            // saveImage(canvas);
 
             if (Components.getOrientation() == 0){
                 Mat rotated = new Mat();
@@ -843,6 +843,9 @@ public class ScreenRecorderService extends Service {
             try {
                 outputStream.write(connectionHeader.getBytes(StandardCharsets.UTF_8));
                 outputStream.flush();
+
+                Components.setConnectionStatus(1);
+
                 outputStream.write(header.getBytes(StandardCharsets.UTF_8));
                 outputStream.flush();
                 outputStream.write(calculationResult.getBytes(StandardCharsets.UTF_8));
