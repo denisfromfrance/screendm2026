@@ -486,6 +486,45 @@ public class ScreenRecorderService extends Service {
         return resized;
     }
 
+    private Mat cleanMat(Mat src){
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size((int)(src.cols() / 4), 45));
+        Mat dilated = new Mat();
+        Imgproc.dilate(src, dilated, kernel);
+
+        List<MatOfPoint> contours = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Imgproc.findContours(dilated, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        contours.sort(new Comparator<MatOfPoint>() {
+            @Override
+            public int compare(MatOfPoint o1, MatOfPoint o2) {
+                org.opencv.core.Rect rect1 = Imgproc.boundingRect(o1);
+                org.opencv.core.Rect rect2 = Imgproc.boundingRect(o2);
+                return Integer.compare(rect1.y, rect2.y);
+            }
+        });
+        int x = 0;
+        int y = 0;
+        int width = src.cols();
+        int height = src.height();
+
+        if (contours.size() > 2){
+            org.opencv.core.Rect rect1 = Imgproc.boundingRect(contours.get(0));
+            org.opencv.core.Rect rect2 = Imgproc.boundingRect(contours.get(contours.size() - 1));
+
+            rect2.x = 0;
+            rect2.width = src.cols();
+
+
+            src.submat(rect1).setTo(new Scalar(0));
+            src.submat(rect2).setTo(new Scalar(0));
+
+            y = rect1.y + rect1.height + 20;
+            height -= rect2.height - 40;
+        }
+        return src;
+    }
+
     private Bitmap prepareImageForDisplay(Bitmap original, int targetWidth, int targetHeight) {
         // 2. Resize to match your display (e.g., 96x64 or 50x50)
         Mat src = Mat.zeros(original.getHeight(), original.getWidth(), CvType.CV_8UC3);
@@ -501,20 +540,21 @@ public class ScreenRecorderService extends Service {
         Mat rightArea = bw.submat(bwBackupCropRoiRight);
         rightArea.setTo(new Scalar(0));
 
-//        saveImage(bwBackup);
+        bw = cleanMat(bw);
+//        saveImage(bw);
 
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 100));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 60));
         Mat dilated = new Mat();
         Imgproc.dilate(bw, dilated, kernel);
 
         int subtractingAmountX = 150 / 2;
         int subtractingAmountY = 100 / 2;
 //        saveImage(dilated);
+        System.out.println("Saved dilated image!");
 
         List<MatOfPoint> contours = new ArrayList<>();
         Mat hierarchy = new Mat();
         Imgproc.findContours(dilated, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
-
         System.out.println("Contours Count: " + contours.size());
 
         contours.sort(new Comparator<MatOfPoint>() {
@@ -525,9 +565,7 @@ public class ScreenRecorderService extends Service {
                 return Integer.compare(rect1.y, rect2.y);
             }
         });
-
-        contours.remove(contours.size() - 1);
-        contours.remove(0);
+//        contours.remove(0);
 
         Map<MatOfPoint, Integer[]> submats = new LinkedHashMap<>();
 
@@ -723,6 +761,8 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
+            saveImage(canvas);
+
             if (Components.getOrientation() == 0){
                 Mat rotated = new Mat();
                 Core.rotate(canvas, rotated, Core.ROTATE_90_CLOCKWISE);
@@ -840,7 +880,7 @@ public class ScreenRecorderService extends Service {
 
     private void prepareImageAndSend(Bitmap bitmap, int width, int height){
         Bitmap image = prepareImageForDisplay(bitmap, width, height);
-        saveImageToPublicDirectory(getApplicationContext(), image, String.format("Debugging Image %s.jpg", new Date().getTime()));
+//        saveImageToPublicDirectory(getApplicationContext(), image, String.format("Debugging Image %s.jpg", new Date().getTime()));
         System.out.println("Image received.");
         sendBytes(bitmapTo1BitArray(image));
     }
@@ -1074,7 +1114,7 @@ public class ScreenRecorderService extends Service {
             e.printStackTrace();
         }
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.letterstest);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.newlettertest);
         testBitmap = BitmapFactory.decodeStream(is);
 
         socket = new Socket();
