@@ -1077,8 +1077,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-                                    prepareImageAndSend(testBitmap, 240, 320);
-//                                    prepareImageAndSend(originalBitmap, 240, 320);
+                                    //prepareImageAndSend(testBitmap, 240, 320);
+                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){
@@ -1171,7 +1171,7 @@ public class ScreenRecorderService extends Service {
             e.printStackTrace();
         }
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.newfourthtestimagefromdenis);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.newthirdtestimagefromdenis);
         testBitmap = BitmapFactory.decodeStream(is);
 
         socket = new Socket();
