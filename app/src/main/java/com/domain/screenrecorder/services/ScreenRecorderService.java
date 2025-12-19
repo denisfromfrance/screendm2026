@@ -815,7 +815,7 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            saveImage(canvas);
+//            saveImage(canvas);
 
             if (Components.getOrientation() == 0){
                 Mat rotated = new Mat();
