@@ -685,8 +685,8 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            if (imageWidth > subtractingAmountX * 2){
-                imageWidth -= subtractingAmountX * 2;
+            if (imageWidth > subtractingAmountX){
+                imageWidth -= subtractingAmountX;
             }
 
             if (imageHeight > subtractingAmountY){
@@ -721,7 +721,7 @@ public class ScreenRecorderService extends Service {
                 cropRoi.width = imageData[2];
                 cropRoi.height = imageData[3];
 
-                Imgproc.rectangle(bw, cropRoi, new Scalar(255), 2);
+                //Imgproc.rectangle(bw, cropRoi, new Scalar(255), 2);
 
                 System.out.println("CropX: " + cropRoi.x);
                 System.out.println("CropY: " + cropRoi.y);
@@ -738,7 +738,7 @@ public class ScreenRecorderService extends Service {
                 tempBWSubmat = cropped.submat(new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]));
                 croppedMat.copyTo(tempBWSubmat);
 
-                Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]), new Scalar(255), 2);
+                //Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]), new Scalar(255), 2);
             }
 
 //            saveImage(bw);
