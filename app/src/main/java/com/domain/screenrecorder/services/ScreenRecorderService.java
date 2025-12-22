@@ -846,7 +846,7 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            saveImage(canvas);
+            //saveImage(canvas);
 
             if (Components.getOrientation() == 0){
                 Mat rotated = new Mat();
@@ -1108,8 +1108,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-                                    prepareImageAndSend(testBitmap, 240, 320);
-//                                    prepareImageAndSend(originalBitmap, 240, 320);
+                                    //prepareImageAndSend(testBitmap, 240, 320);
+                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){
@@ -1120,11 +1120,9 @@ public class ScreenRecorderService extends Service {
                         System.out.println("Pixel copy failed!");
                     }
                 }, handler);
-
                 handler.postDelayed(this, 2500);
             }
         };
-
         handler.post(captureRunnable);
     }
 
