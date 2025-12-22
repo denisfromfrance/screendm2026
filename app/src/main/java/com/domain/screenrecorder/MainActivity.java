@@ -4,9 +4,13 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.res.ResourcesCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -51,6 +55,30 @@ public class MainActivity extends AppCompatActivity {
         Bitmap scaled = Bitmap.createScaledBitmap(original, newWidth, newHeight, true);
         return new BitmapDrawable(getResources(), scaled);
     }
+
+    private BroadcastReceiver connectionStatusReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            int status = intent.getIntExtra("status", -1);
+            System.out.println("Connection status changed...");
+            if (status == 1){
+                connectionStatus.setText("Connected!");
+                connectionStatus.setTextColor(Color.GREEN);
+
+                connectionStatusIcon.setBackground(ResourcesCompat.getDrawable(getApplicationContext().getResources(), R.drawable.connectionstatusdrawableconnected, null));
+            }else if(status == 0){
+                connectionStatus.setText("Disconnected!");
+                connectionStatus.setTextColor(Color.RED);
+
+                connectionStatusIcon.setBackground(ResourcesCompat.getDrawable(getApplicationContext().getResources(), R.drawable.connectionstatusdrawable, null));
+            }else{
+                connectionStatus.setText("Connection Failed!");
+                connectionStatus.setTextColor(Color.parseColor("#FFAA00"));
+
+                connectionStatusIcon.setBackground(ResourcesCompat.getDrawable(getApplicationContext().getResources(), R.drawable.connectionstatusfaileddrawable, null));
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -192,5 +220,17 @@ public class MainActivity extends AppCompatActivity {
                 startService(service);
             }
         }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        LocalBroadcastManager.getInstance(getApplicationContext()).unregisterReceiver(connectionStatusReceiver);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        LocalBroadcastManager.getInstance(getApplicationContext()).registerReceiver(connectionStatusReceiver, new IntentFilter("connection_status_update"));
     }
 }

@@ -29,6 +29,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.provider.MediaStore;
@@ -946,6 +947,7 @@ public class ScreenRecorderService extends Service {
                     connectToServer();
 
                     try {
+                        Components.setConnectionStatus(1);
                         outputStream.write(header.getBytes(StandardCharsets.UTF_8));
                         outputStream.flush();
 

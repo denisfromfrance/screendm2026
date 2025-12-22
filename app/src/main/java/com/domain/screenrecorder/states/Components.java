@@ -1,6 +1,7 @@
 package com.domain.screenrecorder.states;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
@@ -8,6 +9,7 @@ import android.view.View;
 import android.widget.TextView;
 
 import androidx.core.content.res.ResourcesCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.domain.screenrecorder.R;
 import com.domain.screenrecorder.threads.ImagePullThread;
@@ -64,25 +66,14 @@ public class Components {
     public static void setConnectionStatus(int isConnected){
         connectionStatusCode = isConnected;
 
+        Intent connectionUpdateIntent = new Intent("connection_status_update");
+        connectionUpdateIntent.putExtra("status", isConnected);
+        LocalBroadcastManager.getInstance(applicationContext).sendBroadcast(connectionUpdateIntent);
+
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
             public void run() {
-                if (isConnected == 1){
-                    connectionStatus.setText("Connected!");
-                    connectionStatus.setTextColor(Color.GREEN);
 
-                    connectionStatusIcon.setBackground(ResourcesCompat.getDrawable(applicationContext.getResources(), R.drawable.connectionstatusdrawableconnected, null));
-                }else if(isConnected == 0){
-                    connectionStatus.setText("Disconnected!");
-                    connectionStatus.setTextColor(Color.RED);
-
-                    connectionStatusIcon.setBackground(ResourcesCompat.getDrawable(applicationContext.getResources(), R.drawable.connectionstatusdrawable, null));
-                }else{
-                    connectionStatus.setText("Connection Failed!");
-                    connectionStatus.setTextColor(Color.parseColor("#FFAA00"));
-
-                    connectionStatusIcon.setBackground(ResourcesCompat.getDrawable(applicationContext.getResources(), R.drawable.connectionstatusfaileddrawable, null));
-                }
             }
         });
     }
