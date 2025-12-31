@@ -155,7 +155,7 @@ public class MainActivity extends AppCompatActivity {
                 Components.setNoteApplication(Constants.HUIONNOTE);
                 huionNoteBtn.setBackgroundColor(getResources().getColor(R.color.light_green));
                 iarvelBtn.setBackgroundColor(getResources().getColor(R.color.dark_gray));
-                Components.setOrientation(1); // portrait orientation
+                //Components.setOrientation(1); // portrait orientation
             }
         });
 
@@ -167,7 +167,7 @@ public class MainActivity extends AppCompatActivity {
                 Components.setNoteApplication(Constants.IARVEL);
                 iarvelBtn.setBackgroundColor(getResources().getColor(R.color.light_green));
                 huionNoteBtn.setBackgroundColor(getResources().getColor(R.color.dark_gray));
-                Components.setOrientation(0); // landscape orientation
+                //Components.setOrientation(0); // landscape orientation
 //                System.out.println("Button icon changed!");
             }
         });
