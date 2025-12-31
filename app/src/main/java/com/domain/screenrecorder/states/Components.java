@@ -20,6 +20,8 @@ public class Components {
 
     private static int connectionStatusCode = 0;
 
+    private static int noteApplication = Constants.HUIONNOTE;
+
     private static int orientation;
 
     private static ImagePullThread imagePullThread;
@@ -32,6 +34,14 @@ public class Components {
         if (applicationContext == null){
             applicationContext = context;
         }
+    }
+
+    public static int getNoteApplication() {
+        return noteApplication;
+    }
+
+    public static void setNoteApplication(int noteApplication) {
+        Components.noteApplication = noteApplication;
     }
 
     public static boolean isDoCalculation() {

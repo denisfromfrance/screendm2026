@@ -16,6 +16,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.media.Image;
 import android.media.projection.MediaProjectionManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -24,11 +25,13 @@ import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.ImageButton;
 import android.widget.Switch;
 import android.widget.TextView;
 
 import com.domain.screenrecorder.services.ScreenRecorderService;
 import com.domain.screenrecorder.states.Components;
+import com.domain.screenrecorder.states.Constants;
 import com.domain.screenrecorder.threads.ImagePullThread;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.button.MaterialButtonToggleGroup;
@@ -135,67 +138,37 @@ public class MainActivity extends AppCompatActivity {
             stopButton.setEnabled(false);
         });
 
-        MaterialButton portraitToggleButton = findViewById(R.id.portrait);
-        MaterialButton landscapeToggleButton = findViewById(R.id.landscape);
+        ImageButton huionNoteBtn = findViewById(R.id.huionnotebtn);
+        ImageButton iarvelBtn = findViewById(R.id.iarvelbtn);
 
-        portraitToggleButton.setBackgroundColor(getResources().getColor(R.color.light_gray));
-        landscapeToggleButton.setBackgroundColor(getResources().getColor(R.color.dark_gray));
+        Components.setNoteApplication(Constants.HUIONNOTE);
+
+        huionNoteBtn.setBackgroundColor(getResources().getColor(R.color.light_green));
+        iarvelBtn.setBackgroundColor(getResources().getColor(R.color.dark_gray));
 
 
-        portraitToggleButton.addOnCheckedChangeListener(new MaterialButton.OnCheckedChangeListener() {
+        huionNoteBtn.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onCheckedChanged(MaterialButton button, boolean isChecked) {
-                Drawable icon = ContextCompat.getDrawable(getApplicationContext(), R.drawable.ic_portrait);
-                if (isChecked){
-                    icon.setTint(ContextCompat.getColor(getApplicationContext(), R.color.white));
-                    button.setBackgroundColor(getResources().getColor(R.color.light_gray));
-                    landscapeToggleButton.setBackgroundColor(getResources().getColor(R.color.dark_gray));
-                    landscapeToggleButton.setChecked(false);
-                    Components.setOrientation(1); // portrait orientation
-                }else{
-                    icon.setTint(ContextCompat.getColor(getApplicationContext(), R.color.black));
-                    button.setBackgroundColor(getResources().getColor(R.color.dark_gray));
-                    landscapeToggleButton.setBackgroundColor(getResources().getColor(R.color.light_gray));
-                    landscapeToggleButton.setChecked(true);
-                    Components.setOrientation(0); // landscape orientation
-                }
-                button.setIcon(icon);
+            public void onClick(View view) {
+//                Drawable icon = ContextCompat.getDrawable(getApplicationContext(), R.drawable.ic_portrait);
+//                icon.setTint(ContextCompat.getColor(getApplicationContext(), R.color.white));
+                Components.setNoteApplication(Constants.HUIONNOTE);
+                huionNoteBtn.setBackgroundColor(getResources().getColor(R.color.light_green));
+                iarvelBtn.setBackgroundColor(getResources().getColor(R.color.dark_gray));
+                Components.setOrientation(1); // portrait orientation
             }
         });
 
-        landscapeToggleButton.addOnCheckedChangeListener(new MaterialButton.OnCheckedChangeListener() {
+        iarvelBtn.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onCheckedChanged(MaterialButton button, boolean isChecked) {
-                Drawable icon = ContextCompat.getDrawable(getApplicationContext(), R.drawable.ic_landscape);
-                if (isChecked){
-                    icon.setTint(ContextCompat.getColor(getApplicationContext(), R.color.white));
-                    button.setBackgroundColor(getResources().getColor(R.color.light_gray));
-                    portraitToggleButton.setBackgroundColor(getResources().getColor(R.color.dark_gray));
-                    portraitToggleButton.setChecked(false);
-                    Components.setOrientation(0); // landscape orientation
-                }else{
-                    icon.setTint(ContextCompat.getColor(getApplicationContext(), R.color.black));
-                    button.setBackgroundColor(getResources().getColor(R.color.dark_gray));
-                    portraitToggleButton.setBackgroundColor(getResources().getColor(R.color.light_gray));
-                    portraitToggleButton.setChecked(true);
-                    Components.setOrientation(1); // portrait orientation
-                }
-                button.setIcon(icon);
-                System.out.println("Button icon changed!");
-            }
-        });
-
-        MaterialButtonToggleGroup materialButtonToggleGroup = findViewById(R.id.toggle_button_group);
-        materialButtonToggleGroup.addOnButtonCheckedListener(new MaterialButtonToggleGroup.OnButtonCheckedListener() {
-            @Override
-            public void onButtonChecked(MaterialButtonToggleGroup group, int checkedId, boolean isChecked) {
-                if (isChecked){
-                    if (checkedId == R.id.portrait){
-
-                    }else if(checkedId == R.id.landscape){
-
-                    }
-                }
+            public void onClick(View view) {
+//                Drawable icon = ContextCompat.getDrawable(getApplicationContext(), R.drawable.ic_landscape);
+//                icon.setTint(ContextCompat.getColor(getApplicationContext(), R.color.white));
+                Components.setNoteApplication(Constants.IARVEL);
+                iarvelBtn.setBackgroundColor(getResources().getColor(R.color.light_green));
+                huionNoteBtn.setBackgroundColor(getResources().getColor(R.color.dark_gray));
+                Components.setOrientation(0); // landscape orientation
+//                System.out.println("Button icon changed!");
             }
         });
 

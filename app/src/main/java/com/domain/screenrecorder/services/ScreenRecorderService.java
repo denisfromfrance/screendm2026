@@ -43,6 +43,7 @@ import androidx.core.app.NotificationCompat;
 
 import com.domain.screenrecorder.R;
 import com.domain.screenrecorder.states.Components;
+import com.domain.screenrecorder.states.Constants;
 import com.domain.screenrecorder.states.TransformedImage;
 import com.domain.screenrecorder.threads.ImagePullThread;
 import com.domain.screenrecorder.utils.DigitClassifier;
@@ -186,6 +187,24 @@ public class ScreenRecorderService extends Service {
 
         Mat bw = Mat.zeros(gray.rows(), gray.cols(), CvType.CV_8UC1);
         Imgproc.threshold(gray, bw, 250, 255, Imgproc.THRESH_BINARY);
+//        saveImage(bw);
+
+        if (Components.getNoteApplication() == Constants.IARVEL) {
+            org.opencv.core.Rect center = new org.opencv.core.Rect(
+                    0,
+                    0,
+                    bw.cols(),
+                    bw.rows());
+
+            Mat centerMat = new Mat(bw, center);
+
+            double meanVal = Core.mean(centerMat).val[0];
+            if (meanVal > 127) {
+                Core.bitwise_not(bw, bw);
+            }
+
+//            saveImage(bw);
+        }
 
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(10, 10));
         Imgproc.morphologyEx(bw, bw, Imgproc.MORPH_CLOSE, kernel);
@@ -226,10 +245,6 @@ public class ScreenRecorderService extends Service {
             System.out.println("Updated canvas Area width: " + canvasArea.width);
             System.out.println("Updated canvas Area height: " + canvasArea.height);
             bw = new Mat(gray, canvasArea);
-
-//            kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2));
-//            Imgproc.morphologyEx(bw, bw, Imgproc.MORPH_CLOSE, kernel);
-//            saveImage(bw);
 
             System.out.println("Clearing contours...");
             contours.clear();
@@ -847,7 +862,7 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            //saveImage(canvas);
+//            saveImage(canvas);
 
             if (Components.getOrientation() == 0){
                 Mat rotated = new Mat();
@@ -1110,8 +1125,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-                                    //prepareImageAndSend(testBitmap, 240, 320);
-                                    prepareImageAndSend(originalBitmap, 240, 320);
+                                    prepareImageAndSend(testBitmap, 240, 320);
+//                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){

@@ -7,10 +7,11 @@
     tools:context=".MainActivity">
 
     <LinearLayout
+        android:id="@+id/linearLayout2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#00000000"
         android:layout_marginTop="50dp"
+        android:background="#00000000"
         android:gravity="center"
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
@@ -79,49 +80,35 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:visibility="invisible"
         app:layout_constraintBottom_toTopOf="@+id/startButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toBottomOf="@+id/linearLayout2">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <com.google.android.material.button.MaterialButtonToggleGroup
-                android:id="@+id/toggle_button_group"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/portrait"
+                <ImageButton
+                    android:id="@+id/huionnotebtn"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:checkable="true"
-                    app:icon="@drawable/ic_portrait"
-                    app:iconGravity="textTop"
-                    app:iconSize="24dp" />
+                    android:src="@mipmap/huion_note"
+                    android:layout_margin="10dp"/>
 
-                <TextView
-                    android:id="@+id/textView"
+<!--                <TextView-->
+<!--                    android:id="@+id/textView"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:text="Display Orientation" />-->
+
+                <ImageButton
+                    android:id="@+id/iarvelbtn"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Display Orientation" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/landscape"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:checkable="true"
-                    app:icon="@drawable/ic_landscape"
-                    app:iconGravity="textTop"
-                    app:iconSize="24dp" />
-
-            </com.google.android.material.button.MaterialButtonToggleGroup>
+                    android:src="@mipmap/iarvel_magic"
+                    android:layout_margin="10dp"/>
         </LinearLayout>
 
     </LinearLayout>
