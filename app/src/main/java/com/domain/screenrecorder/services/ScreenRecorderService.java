@@ -161,7 +161,7 @@ public class ScreenRecorderService extends Service {
         int newHeight = (int)(width * scaleRatio);
         return scaleSmooth(image, width, newHeight);
     }
-    
+
     private Bitmap scaleSmooth(Bitmap original, int newWidth, int newHeight){
         Bitmap scaled = Bitmap.createBitmap(newWidth, newHeight, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(scaled);
@@ -907,6 +907,18 @@ public class ScreenRecorderService extends Service {
             resized.copyTo(targetArea);
 
             canvas = smoothImage(canvas);
+
+            if (Components.getNoteApplication() == Constants.IARVEL){
+                org.opencv.core.Rect left = new org.opencv.core.Rect(0, 0, 5, canvas.rows());
+                org.opencv.core.Rect right = new org.opencv.core.Rect(canvas.cols() - 5, 0, 5, canvas.rows());
+                org.opencv.core.Rect top = new org.opencv.core.Rect(0, 0, canvas.cols(), 5);
+                org.opencv.core.Rect bottom = new org.opencv.core.Rect(0, canvas.rows() - 5, canvas.cols(), 5);
+
+                Imgproc.rectangle(canvas.submat(left), left, new Scalar(0));
+                Imgproc.rectangle(canvas.submat(right), right, new Scalar(0));
+                Imgproc.rectangle(canvas.submat(top), top, new Scalar(0));
+                Imgproc.rectangle(canvas.submat(bottom), bottom, new Scalar(0));
+            }
 //            Imgproc.rectangle(canvas, roi, new Scalar(255), 2);
 
             if (Components.isDoCalculation()){
@@ -917,7 +929,7 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-//            saveImage(canvas);
+            saveImage(canvas);
 
             if (Components.getOrientation() == 0){
                 Mat rotated = new Mat();
@@ -1180,8 +1192,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-//                                    prepareImageAndSend(testBitmap, 240, 320);
-                                    prepareImageAndSend(originalBitmap, 240, 320);
+                                    prepareImageAndSend(testBitmap, 240, 320);
+//                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){
@@ -1273,7 +1285,7 @@ public class ScreenRecorderService extends Service {
         }
 
 //        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.newfourthtestimagefromdenis);
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.iarvelnotewriting);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.iarvellatest);
         testBitmap = BitmapFactory.decodeStream(is);
 
         socket = new Socket();
