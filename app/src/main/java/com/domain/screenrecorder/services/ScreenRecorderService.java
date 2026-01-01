@@ -202,9 +202,9 @@ public class ScreenRecorderService extends Service {
             if (meanVal > 127) {
                 Core.bitwise_not(bw, bw);
             }
-
-//            saveImage(bw);
         }
+
+//        saveImage(bw);
 
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(10, 10));
         Imgproc.morphologyEx(bw, bw, Imgproc.MORPH_CLOSE, kernel);
@@ -219,7 +219,7 @@ public class ScreenRecorderService extends Service {
         Mat hierarchy = new Mat();
         Imgproc.findContours(bw, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
-        if (contours.size() > 1) {
+        if (contours.size() > 0) {
             System.out.println("####### Found more than 1 contour");
             contours.sort(new Comparator<MatOfPoint>() {
                 @Override
@@ -230,14 +230,43 @@ public class ScreenRecorderService extends Service {
                 }
             });
 
-            org.opencv.core.Rect canvasArea = Imgproc.boundingRect(contours.get(1));
+            org.opencv.core.Rect canvasArea = Imgproc.boundingRect(contours.get(0));
+            if (contours.size() > 1 && Components.getNoteApplication() == Constants.HUIONNOTE){
+                canvasArea = Imgproc.boundingRect(contours.get(1));
+            }
+
+            if (Components.getNoteApplication() == Constants.IARVEL){
+                int minX = Integer.MAX_VALUE;
+                int minY = Integer.MAX_VALUE;
+                int maxX = 0;
+                int maxY = 0;
+                for (Mat contour : contours){
+                    org.opencv.core.Rect contourBoundingBox = Imgproc.boundingRect(contour);
+                    if(contourBoundingBox.x < minX){
+                        minX = contourBoundingBox.x;
+                    }
+
+                    if (contourBoundingBox.y < minY){
+                        minY = contourBoundingBox.y;
+                    }
+
+                    if (contourBoundingBox.x + contourBoundingBox.width > maxX){
+                        maxX = contourBoundingBox.x + contourBoundingBox.width;
+                    }
+
+                    if (contourBoundingBox.y + contourBoundingBox.height > maxY){
+                        maxY = contourBoundingBox.y + contourBoundingBox.height;
+                    }
+                }
+                canvasArea = new org.opencv.core.Rect(minX, minY, maxX - minX, maxY - minY);
+            }
             System.out.println("Canvas Area X: " + canvasArea.x);
             System.out.println("Canvas Area Y: " + canvasArea.y);
             System.out.println("Canvas Area width: " + canvasArea.width);
             System.out.println("Canvas Area height: " + canvasArea.height);
-            canvasArea.y += 35;
+//            canvasArea.y += 35;
             if (canvasArea.height > 60) {
-                canvasArea.height -= 70;
+                canvasArea.height -= 35;
             }
 
             System.out.println("Updated canvas Area X: " + canvasArea.x);
@@ -245,39 +274,37 @@ public class ScreenRecorderService extends Service {
             System.out.println("Updated canvas Area width: " + canvasArea.width);
             System.out.println("Updated canvas Area height: " + canvasArea.height);
             bw = new Mat(gray, canvasArea);
-
+//            saveImage(bw);
             System.out.println("Clearing contours...");
-            contours.clear();
-            Imgproc.findContours(bw, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
-            double maxArea = 0;
-            org.opencv.core.Rect whiteRect = null;
-            for (MatOfPoint c: contours){
-                double area = Imgproc.contourArea(c);
-                if (area > maxArea){
-                    maxArea = area;
-                    whiteRect = Imgproc.boundingRect(c);
+
+            if (Components.getNoteApplication() == Constants.HUIONNOTE) {
+                contours.clear();
+                Imgproc.findContours(bw, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+                double maxArea = 0;
+                org.opencv.core.Rect whiteRect = null;
+                for (MatOfPoint c : contours) {
+                    double area = Imgproc.contourArea(c);
+                    if (area > maxArea) {
+                        maxArea = area;
+                        whiteRect = Imgproc.boundingRect(c);
+                    }
                 }
-            }
 
-            if (whiteRect != null) {
-                System.out.println("BW Width: " + bw.cols());
-                System.out.println("BW Rows: " + bw.rows());
+                if (whiteRect != null) {
+                    System.out.println("BW Width: " + bw.cols());
+                    System.out.println("BW Rows: " + bw.rows());
 
-                bw = bw.submat(whiteRect);
-                System.out.println("White Rect: " + whiteRect.x + " Y: " + whiteRect.y + " WIDTH: " + whiteRect.width + " Height: " + whiteRect.height);
+                    bw = bw.submat(whiteRect);
+                    System.out.println("White Rect: " + whiteRect.x + " Y: " + whiteRect.y + " WIDTH: " + whiteRect.width + " Height: " + whiteRect.height);
+                }
             }
 //            saveImage(bw);
 //            Imgproc.cvtColor(bw, bw, Imgproc.COLOR_BGR2GRAY);
             Imgproc.threshold(bw, bw, 0, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
-//            Mat testMat = Mat.zeros(bw.rows() + 100, bw.cols() + 100, bw.type());
-//            Core.bitwise_not(testMat, testMat);
-//            bw.copyTo(testMat.submat(new org.opencv.core.Rect(50, 50, bw.cols(), bw.rows())));
-//            Core.bitwise_not(bw, bw);
-//            saveImage(croppedArea);
-//            saveImage(testMat);
-        }else{
-            Imgproc.threshold(gray, bw, 50, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
         }
+//        else{
+//            Imgproc.threshold(gray, bw, 50, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
+//        }
 
         org.opencv.core.Rect center = new org.opencv.core.Rect(
                 bw.cols() / 4,
@@ -680,8 +707,8 @@ public class ScreenRecorderService extends Service {
 
 //        saveImage(dilated);
 
-        int subtractingAmountX = 150 / 2;
-        int subtractingAmountY = 20 / 2;
+        int subtractingAmountX = 150 / 4;
+        int subtractingAmountY = 20 / 4;
         System.out.println("Saved dilated image!");
 
         List<MatOfPoint> contours = new ArrayList<>();
@@ -771,20 +798,25 @@ public class ScreenRecorderService extends Service {
             }
 
             if (imageHeight > subtractingAmountY){
-                imageHeight -= subtractingAmountY;
+                imageHeight -= subtractingAmountY * 2;
             }
 
-            submats.put(c, new Integer[]{(imagePosX - xStart) + subtractingAmountX, (imagePosY - yStart), imageWidth, imageHeight});
+            if (Components.getNoteApplication() == Constants.IARVEL) {
+                submats.put(c, new Integer[]{(imagePosX) + subtractingAmountX, (imagePosY - yStart), imageWidth, imageHeight});
+            }else {
+                submats.put(c, new Integer[]{(imagePosX - xStart) + subtractingAmountX, (imagePosY - yStart), imageWidth, imageHeight});
+            }
         }
 
         Bitmap bitmap;
         if (contours.size() > 0) {
 
             groupImageWidth = (xEnd - xStart);
-            groupImageHeight = (yEnd - yStart);
+            groupImageHeight = (yEnd - yStart) + (subtractingAmountY * 2);
 
 //            Imgproc.rectangle(bw, new org.opencv.core.Rect(xStart, yStart, groupImageWidth, groupImageHeight), new Scalar(255), 2);
 //            saveImage(bw);
+
             System.out.println("Group Image Width: " + groupImageWidth);
             System.out.println("Group Image Height: " + groupImageHeight);
             System.out.println("Original image size: " + bw.cols() + "x" + bw.rows());
@@ -797,12 +829,12 @@ public class ScreenRecorderService extends Service {
                 org.opencv.core.Rect cropRoi = Imgproc.boundingRect(content.getKey());
                 Integer[] imageData = content.getValue();
 
-                cropRoi.x += subtractingAmountX;
-                cropRoi.y += subtractingAmountY;
+                cropRoi.x += (subtractingAmountX / 2);
+                cropRoi.y += (subtractingAmountY);
                 cropRoi.width = imageData[2];
                 cropRoi.height = imageData[3];
 
-//                Imgproc.rectangle(bw, cropRoi, new Scalar(255), 2);
+                Imgproc.rectangle(bw, cropRoi, new Scalar(255), 2);
 
                 System.out.println("CropX: " + cropRoi.x);
                 System.out.println("CropY: " + cropRoi.y);
@@ -813,23 +845,46 @@ public class ScreenRecorderService extends Service {
                 System.out.println("Image Height: " + bw.rows());
 
                 // need to debug here
+                if (Components.getNoteApplication() == Constants.HUIONNOTE) {
+                    if ((cropRoi.x + cropRoi.width <= bw.cols() && imageData[1] + cropRoi.height <= bw.rows()) &&
+                            (imageData[0] + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows())
+                    ) {
+                        croppedMat = new Mat(bw, cropRoi);
 
-                if ((cropRoi.x + cropRoi.width <= bw.cols() && cropRoi.y + cropRoi.height <= bw.rows()) &&
-                        (imageData[0] + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows())
-                ) {
-                    croppedMat = new Mat(bw, cropRoi);
+                        System.out.println("Image Data: " + Arrays.toString(imageData));
 
-                    System.out.println("Image Data: " + Arrays.toString(imageData));
+//                    tempBWSubmat = cropped.submat(new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]));
+                        int newPosX = cropRoi.x - xStart;
+                        if (newPosX < 0) {
+                            newPosX = 0;
+                        }
 
-                    tempBWSubmat = cropped.submat(new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]));
-                    croppedMat.copyTo(tempBWSubmat);
+                        tempBWSubmat = cropped.submat(new org.opencv.core.Rect(newPosX, imageData[1], imageData[2], imageData[3]));
+                        croppedMat.copyTo(tempBWSubmat);
+                    }
+                }else {
+                    if ((cropRoi.x + cropRoi.width <= bw.cols() && cropRoi.y + cropRoi.height <= bw.rows()) &&
+                            (cropRoi.x + imageData[2] <= cropped.cols() && cropRoi.y + imageData[3] <= cropped.rows())
+                    ) {
+                        croppedMat = new Mat(bw, cropRoi);
+
+                        System.out.println("Image Data: " + Arrays.toString(imageData));
+
+//                    tempBWSubmat = cropped.submat(new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2], imageData[3]));
+                        int newPosX = cropRoi.x - xStart;
+                        if (newPosX < 0) {
+                            newPosX = 0;
+                        }
+
+                        tempBWSubmat = cropped.submat(new org.opencv.core.Rect(newPosX, imageData[1], imageData[2], imageData[3]));
+                        croppedMat.copyTo(tempBWSubmat);
+                    }
                 }
 
 //                Imgproc.rectangle(cropped, new org.opencv.core.Rect(imageData[0], imageData[1], imageData[2] - subtractingAmountX, imageData[3]), new Scalar(255), 2);
             }
 
 //            saveImage(bw);
-
 //            saveImage(cropped);
             System.out.println("Transforming image...");
             TransformedImage transformedImage = transformImageForDisplay(cropped, targetWidth, targetHeight);
@@ -1125,7 +1180,7 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-                                    //prepareImageAndSend(testBitmap, 240, 320);
+//                                    prepareImageAndSend(testBitmap, 240, 320);
                                     prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
@@ -1217,7 +1272,8 @@ public class ScreenRecorderService extends Service {
             e.printStackTrace();
         }
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.newfourthtestimagefromdenis);
+//        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.newfourthtestimagefromdenis);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.iarvelnotewriting);
         testBitmap = BitmapFactory.decodeStream(is);
 
         socket = new Socket();
