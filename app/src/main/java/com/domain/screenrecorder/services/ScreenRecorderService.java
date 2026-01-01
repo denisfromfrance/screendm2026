@@ -834,7 +834,7 @@ public class ScreenRecorderService extends Service {
                 cropRoi.width = imageData[2];
                 cropRoi.height = imageData[3];
 
-                Imgproc.rectangle(bw, cropRoi, new Scalar(255), 2);
+                //Imgproc.rectangle(bw, cropRoi, new Scalar(255), 2);
 
                 System.out.println("CropX: " + cropRoi.x);
                 System.out.println("CropY: " + cropRoi.y);
