@@ -864,7 +864,7 @@ public class ScreenRecorderService extends Service {
 
     private void setupMediaRecorder(){
         System.out.println("Setting up media recorder...");
-        mediaProjection = projectionManager.getMediaProjection(resultCode, data);
+        //mediaProjection = projectionManager.getMediaProjection(resultCode, data);
 
         try{
             File dir = getExternalFilesDir(null);
@@ -892,6 +892,7 @@ public class ScreenRecorderService extends Service {
         captureTexture.setDefaultBufferSize(WIDTH, HEIGHT);
 
         captureSurface = new Surface(captureTexture);
+        //captureSurface = mediaRecorder.getSurface();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE){
             mediaProjection.registerCallback(new MediaProjection.Callback() {
@@ -990,7 +991,7 @@ public class ScreenRecorderService extends Service {
                             exception.printStackTrace();
                         }
                     }else {
-                        setupMediaRecorder();
+                        //setupMediaRecorder();
                         System.out.println("Pixel copy failed!");
                     }
                 }, handler);
@@ -1086,9 +1087,11 @@ public class ScreenRecorderService extends Service {
             threadStarted = true;
         }
 
-        setupMediaRecorder();
+        mediaProjection = projectionManager.getMediaProjection(resultCode, data);
+
+        //setupMediaRecorder();
         createVirtualDisplay();
-        mediaRecorder.start();
+        //mediaRecorder.start();
         captureSurfacePeriodically(captureSurface);
         return START_STICKY;
     }
