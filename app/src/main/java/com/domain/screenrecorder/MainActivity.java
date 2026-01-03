@@ -65,17 +65,20 @@ public class MainActivity extends AppCompatActivity {
             int status = intent.getIntExtra("status", -1);
             System.out.println("Connection status changed...");
             if (status == 1){
+                System.out.println("Connected!");
                 connectionStatus.setText("Connected!");
                 connectionStatus.setTextColor(Color.GREEN);
 
                 connectionStatusIcon.setBackground(ResourcesCompat.getDrawable(getApplicationContext().getResources(), R.drawable.connectionstatusdrawableconnected, null));
             }else if(status == 0){
+                System.out.println("Disconnected!");
                 connectionStatus.setText("Disconnected!");
                 connectionStatus.setTextColor(Color.RED);
 
                 connectionStatusIcon.setBackground(ResourcesCompat.getDrawable(getApplicationContext().getResources(), R.drawable.connectionstatusdrawable, null));
             }else{
                 connectionStatus.setText("Connection Failed!");
+                System.out.println("Connection Failed!");
                 connectionStatus.setTextColor(Color.parseColor("#FFAA00"));
 
                 connectionStatusIcon.setBackground(ResourcesCompat.getDrawable(getApplicationContext().getResources(), R.drawable.connectionstatusfaileddrawable, null));
