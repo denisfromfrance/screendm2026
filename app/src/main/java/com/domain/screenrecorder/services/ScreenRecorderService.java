@@ -11,9 +11,12 @@ import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.PixelFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
+import android.media.Image;
+import android.media.ImageReader;
 import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
@@ -22,6 +25,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.util.DisplayMetrics;
 import android.view.PixelCopy;
@@ -52,6 +56,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -79,6 +84,7 @@ public class ScreenRecorderService extends Service {
     private static int HEIGHT = 1920;
     private static int DPI = 320;
 
+    private long latestSeconds = SystemClock.elapsedRealtime();
     private long total = 0;
 
     private SurfaceTexture captureTexture;
@@ -90,6 +96,7 @@ public class ScreenRecorderService extends Service {
     Handler handler;
     Runnable captureRunnable;
 
+    ImageReader imageReader;
 
     Socket socket;
     OutputStream outputStream;
@@ -271,6 +278,12 @@ public class ScreenRecorderService extends Service {
         Bitmap croppedPortion = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(mat, croppedPortion);
         saveImageToPublicDirectory(getApplicationContext(), croppedPortion, String.format(
+                "Cropped Digit-%s.jpg",
+                String.valueOf(new Date().getTime())));
+    }
+
+    public void saveBitmap(Bitmap bitmap){
+        saveImageToPublicDirectory(getApplicationContext(), bitmap, String.format(
                 "Cropped Digit-%s.jpg",
                 String.valueOf(new Date().getTime())));
     }
@@ -505,7 +518,7 @@ public class ScreenRecorderService extends Service {
 
         Mat bw = convertToBlackAndWhite(src);
 
-//        saveImage(bw);
+        saveImage(bw);
 
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(150, 20));
 
@@ -887,6 +900,7 @@ public class ScreenRecorderService extends Service {
     }
 
     private void createVirtualDisplay(){
+        handler = new Handler(Looper.getMainLooper());
 
         captureTexture = new SurfaceTexture(10);
         captureTexture.setDefaultBufferSize(WIDTH, HEIGHT);
@@ -917,13 +931,49 @@ public class ScreenRecorderService extends Service {
         System.out.println("Display height: " + HEIGHT);
         System.out.println("Display DPI: " + DPI);
 
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+        imageReader = ImageReader.newInstance(WIDTH, HEIGHT, PixelFormat.RGBA_8888, 2);
+        imageReader.setOnImageAvailableListener(reader -> {
+            Image image = reader.acquireLatestImage();
+            if (image == null) return;
+            long now = SystemClock.elapsedRealtime();
+            if (now - latestSeconds >= 2000){
+                latestSeconds = now;
+                Image.Plane plane = image.getPlanes()[0];
+                ByteBuffer byteBuffer = plane.getBuffer();
+                int pixelStride = plane.getPixelStride();
+                int rowStride = plane.getRowStride();
+                int rowPadding = rowStride - pixelStride * WIDTH;
+
+                System.out.println("Pixel Stride: " + pixelStride);
+                System.out.println("Row Stride: " + rowStride);
+                System.out.println("Row Padding: " + rowPadding);
+
+                Bitmap bitmap = Bitmap.createBitmap(WIDTH + rowPadding / pixelStride, HEIGHT, Bitmap.Config.ARGB_8888);
+                bitmap.copyPixelsFromBuffer(byteBuffer);
+
+//                saveBitmap(bitmap);
+
+                if (threadStarted){
+                    executorService.submit(() -> {
+                    prepareImageAndSend(testBitmap, 240, 320);
+//                        prepareImageAndSend(bitmap, 240, 320);
+                    });
+                }
+            }
+
+            image.close();
+
+        }, handler);
+
         captureVirtualDisplay = mediaProjection.createVirtualDisplay(
                 "Capture VDisplay",
                 WIDTH,
                 HEIGHT,
                 DPI,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                captureSurface,
+                imageReader.getSurface(), // captureSurface,
                 null, null
         );
     }
@@ -966,7 +1016,6 @@ public class ScreenRecorderService extends Service {
     }
 
     private void captureSurfacePeriodically(Surface surface){
-        handler = new Handler(Looper.getMainLooper());
         ExecutorService executorService = Executors.newSingleThreadExecutor();
 
         captureRunnable = new Runnable() {
@@ -1092,7 +1141,7 @@ public class ScreenRecorderService extends Service {
         //setupMediaRecorder();
         createVirtualDisplay();
         //mediaRecorder.start();
-        captureSurfacePeriodically(captureSurface);
+//        captureSurfacePeriodically(captureSurface);
         return START_STICKY;
     }
 
