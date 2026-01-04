@@ -515,7 +515,7 @@ public class ScreenRecorderService extends Service {
 
         //saveImage(bw);
 
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(150, 20));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 20));
 
         Mat dilated = Mat.zeros(bw.rows(), bw.cols(), bw.type());
 
@@ -536,9 +536,9 @@ public class ScreenRecorderService extends Service {
             Imgproc.dilate(bw, dilatedSubmat, kernel, new Point(75, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
         }
 
-        //saveImage(dilatedSubmat);
+        saveImage(dilatedSubmat);
 
-        int subtractingAmountX = 150 / 4;
+        int subtractingAmountX = 180 / 4;
         int subtractingAmountY = 20 / 4;
         System.out.println("Saved dilated image!");
 
@@ -730,7 +730,6 @@ public class ScreenRecorderService extends Service {
             resized.copyTo(targetArea);
 
             //canvas = smoothImage(canvas);
-
             /*
             if (Components.getNoteApplication() == Constants.IARVEL){
                 org.opencv.core.Rect left = new org.opencv.core.Rect(0, 0, 50, canvas.rows());
@@ -1062,8 +1061,8 @@ public class ScreenRecorderService extends Service {
                                 System.out.println("Sending image...");
 
                                 executorService.submit(() -> {
-//                                    prepareImageAndSend(testBitmap, 240, 320);
-                                    prepareImageAndSend(originalBitmap, 240, 320);
+                                    prepareImageAndSend(testBitmap, 240, 320);
+//                                    prepareImageAndSend(originalBitmap, 240, 320);
                                 });
                             }
                         }catch (Exception exception){
@@ -1154,9 +1153,9 @@ public class ScreenRecorderService extends Service {
             e.printStackTrace();
         }
 
-//        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.newfourthtestimagefromdenis);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.huionnotelatestnumbers);
 //        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.correctnumberrepresentation);
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.iarvel3);
+//        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.iarvel3);
         testBitmap = BitmapFactory.decodeStream(is);
 
         socket = new Socket();
