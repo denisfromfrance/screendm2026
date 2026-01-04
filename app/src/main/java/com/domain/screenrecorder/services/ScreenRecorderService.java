@@ -943,7 +943,7 @@ public class ScreenRecorderService extends Service {
             Image image = reader.acquireLatestImage();
             if (image == null) return;
             long now = SystemClock.elapsedRealtime();
-            if (now - latestSeconds < 2000){
+            if (now - latestSeconds < 1000){
                 image.close();
                 return;
             }
