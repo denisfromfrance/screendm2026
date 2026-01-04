@@ -536,7 +536,7 @@ public class ScreenRecorderService extends Service {
             Imgproc.dilate(bw, dilatedSubmat, kernel, new Point(75, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
         }
 
-        saveImage(dilatedSubmat);
+        //saveImage(dilatedSubmat);
 
         int subtractingAmountX = 180 / 4;
         int subtractingAmountY = 20 / 4;
