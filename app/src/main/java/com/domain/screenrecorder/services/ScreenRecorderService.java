@@ -757,7 +757,7 @@ public class ScreenRecorderService extends Service {
             Mat rgba = new Mat();
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
 
-            saveImage(rgba);
+//            saveImage(rgba);
 
             if (Components.getOrientation() == 0){
                 Mat rotated = new Mat();
@@ -982,7 +982,7 @@ public class ScreenRecorderService extends Service {
             }
 
             Bitmap original = cropped.copy(Bitmap.Config.ARGB_8888, false);
-            saveBitmap(cropped);
+            //saveBitmap(cropped);
 
             cropped.recycle();
             bitmap.recycle();
