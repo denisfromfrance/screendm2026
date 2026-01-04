@@ -757,6 +757,8 @@ public class ScreenRecorderService extends Service {
             Mat rgba = new Mat();
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
 
+            saveImage(rgba);
+
             if (Components.getOrientation() == 0){
                 Mat rotated = new Mat();
                 Core.rotate(rgba, rotated, Core.ROTATE_90_CLOCKWISE);
@@ -955,23 +957,40 @@ public class ScreenRecorderService extends Service {
 
             image.close();
 
+            if (captureVirtualDisplay != null){
+                android.graphics.Point point = new android.graphics.Point();
+                captureVirtualDisplay.getDisplay().getSize(point);
+//                WIDTH = point.x;
+//                HEIGHT = point.y;
+                System.out.println("Display Point X: " + point.x);
+                System.out.println("Display Point Y: " + point.y);
+            }
+
             System.out.println("Pixel Stride: " + pixelStride);
             System.out.println("Row Stride: " + rowStride);
             System.out.println("Row Padding: " + rowPadding);
+            System.out.println("Expected: " + WIDTH * pixelStride);
 
             Bitmap bitmap = Bitmap.createBitmap(WIDTH + rowPadding / pixelStride, HEIGHT, Bitmap.Config.ARGB_8888);
             bitmap.copyPixelsFromBuffer(byteBuffer);
 
+            int STRIPE = 50;
+
             Bitmap cropped = Bitmap.createBitmap(bitmap, 0, 0, WIDTH, HEIGHT);
+            if (Components.getNoteApplication() == Constants.IARVEL){
+                cropped = Bitmap.createBitmap(bitmap, STRIPE, 0, WIDTH - (STRIPE * 2), HEIGHT);
+            }
+
             Bitmap original = cropped.copy(Bitmap.Config.ARGB_8888, false);
+            saveBitmap(cropped);
+
             cropped.recycle();
             bitmap.recycle();
 
-//                saveBitmap(bitmap);
 
             if (threadStarted){
                 executorService.submit(() -> {
-                //prepareImageAndSend(testBitmap, 240, 320);
+//                prepareImageAndSend(testBitmap, 240, 320);
                     prepareImageAndSend(original, 240, 320);
                 });
             }
