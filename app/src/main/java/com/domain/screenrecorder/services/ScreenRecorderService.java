@@ -260,7 +260,7 @@ public class ScreenRecorderService extends Service {
     }
 
     private List<MatOfPoint> getContours(Mat blackAndWhiteMat, boolean isChar){
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(isChar ? 4 : 80, 5));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(isChar ? 4 : 80, 3));
         Mat dilated = Mat.zeros(blackAndWhiteMat.rows(), blackAndWhiteMat.cols(), blackAndWhiteMat.type());
         Imgproc.dilate(blackAndWhiteMat, dilated, kernel);
 
@@ -385,7 +385,7 @@ public class ScreenRecorderService extends Service {
             stringBuilder.append(entry.getValue());
         }
 
-        saveImage(original);
+        //saveImage(original);
         return stringBuilder.toString();
     }
 
@@ -534,12 +534,12 @@ public class ScreenRecorderService extends Service {
 
         if (Components.getNoteApplication() == Constants.HUIONNOTE) {
             Mat bwSubmat = bw.submat(subtractingAmount, bw.rows() - subtractingAmount, 0, bw.cols());
-            Imgproc.dilate(bwSubmat, dilatedSubmat, kernel, new Point(75, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
+            Imgproc.dilate(bwSubmat, dilatedSubmat, kernel, new Point(90, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
         }else{
             dilatedSubmat = dilated.submat(0, dilated.rows(), 5, dilated.cols() - 5);
             Mat bwSubmat = bw.submat(0, bw.rows(), 5, bw.cols() - 5);
             bw = bwSubmat.clone();
-            Imgproc.dilate(bw, dilatedSubmat, kernel, new Point(75, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
+            Imgproc.dilate(bw, dilatedSubmat, kernel, new Point(90, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
         }
 
         //saveImage(dilatedSubmat);
