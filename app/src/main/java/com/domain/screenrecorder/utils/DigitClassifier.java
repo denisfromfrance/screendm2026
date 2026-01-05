@@ -21,7 +21,7 @@ public class DigitClassifier {
         Interpreter.Options options = new Interpreter.Options();
         options.setNumThreads(4); // adjust based on device
 //        interpreter = new Interpreter(loadModelFile(context, "dcmV5-pre-release-prob.tflite"), options);
-        interpreter = new Interpreter(loadModelFile(context, "dcmV7-pre-release-prob.tflite"), options);
+        interpreter = new Interpreter(loadModelFile(context, "dcmV11-pre-release-prob.tflite"), options);
         symbolClassificationModelInterpreter = new Interpreter(loadModelFile(context, "MathSymbolClassificationModel.tflite"));
     }
 
