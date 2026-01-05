@@ -73,6 +73,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public class ScreenRecorderService extends Service {
@@ -91,6 +92,8 @@ public class ScreenRecorderService extends Service {
     private SurfaceTexture captureTexture;
     private Surface captureSurface;
     private VirtualDisplay captureVirtualDisplay;
+
+    private final AtomicBoolean isProcessing = new AtomicBoolean(false);
 
     HandlerThread imageThread;
 
@@ -257,10 +260,13 @@ public class ScreenRecorderService extends Service {
     }
 
     private List<MatOfPoint> getContours(Mat blackAndWhiteMat, boolean isChar){
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(isChar ? 8 : 50, 5));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(isChar ? 4 : 80, 5));
         Mat dilated = Mat.zeros(blackAndWhiteMat.rows(), blackAndWhiteMat.cols(), blackAndWhiteMat.type());
         Imgproc.dilate(blackAndWhiteMat, dilated, kernel);
 
+//        if (!isChar){
+//            saveImage(dilated);
+//        }
 
         List<MatOfPoint> contours = new ArrayList<>();
         Mat hierarchy = new Mat();
@@ -295,7 +301,7 @@ public class ScreenRecorderService extends Service {
         Mat bw = input.clone();
 //        saveImage(bw);
 //        List<MatOfPoint> tempContours = getContours(input, true);
-        List<MatOfPoint> contours = getContours(input, true);
+        List<MatOfPoint> contours = getContours(bw, true);
         List<org.opencv.core.Rect> boundingBoxes = getBoundingBoxes(contours);
 
         Mat mat;
@@ -617,7 +623,7 @@ public class ScreenRecorderService extends Service {
                 imageWidth -= subtractingAmountX;
             }
 
-            if (imageHeight > subtractingAmountY){
+            if (imageHeight > subtractingAmountY * 2){
                 imageHeight -= subtractingAmountY * 2;
             }
 
@@ -730,18 +736,6 @@ public class ScreenRecorderService extends Service {
             resized.copyTo(targetArea);
 
             //canvas = smoothImage(canvas);
-            /*
-            if (Components.getNoteApplication() == Constants.IARVEL){
-                org.opencv.core.Rect left = new org.opencv.core.Rect(0, 0, 50, canvas.rows());
-                org.opencv.core.Rect right = new org.opencv.core.Rect(canvas.cols() - 50, 0, 50, canvas.rows());
-                org.opencv.core.Rect top = new org.opencv.core.Rect(0, 0, canvas.cols(), 50);
-                org.opencv.core.Rect bottom = new org.opencv.core.Rect(0, canvas.rows() - 50, canvas.cols(), 50);
-
-                Imgproc.rectangle(canvas, left, new Scalar(0));
-                Imgproc.rectangle(canvas, right, new Scalar(0));
-                Imgproc.rectangle(canvas, top, new Scalar(0));
-                Imgproc.rectangle(canvas, bottom, new Scalar(0));
-            }*/
 
             if (Components.isDoCalculation()){
                 Mat result = extractLines(canvas);
@@ -941,13 +935,18 @@ public class ScreenRecorderService extends Service {
         imageReader.setOnImageAvailableListener(reader -> {
             Image image = reader.acquireLatestImage();
             if (image == null) return;
+
             long now = SystemClock.elapsedRealtime();
             if (now - latestSeconds < 1000){
                 image.close();
                 return;
             }
 
-            latestSeconds = now;
+            if (!isProcessing.compareAndSet(false, true)){
+                image.close();
+                return;
+            }
+
             Image.Plane plane = image.getPlanes()[0];
             ByteBuffer byteBuffer = plane.getBuffer();
             int pixelStride = plane.getPixelStride();
@@ -959,8 +958,6 @@ public class ScreenRecorderService extends Service {
             if (captureVirtualDisplay != null){
                 android.graphics.Point point = new android.graphics.Point();
                 captureVirtualDisplay.getDisplay().getSize(point);
-//                WIDTH = point.x;
-//                HEIGHT = point.y;
                 System.out.println("Display Point X: " + point.x);
                 System.out.println("Display Point Y: " + point.y);
             }
@@ -983,15 +980,23 @@ public class ScreenRecorderService extends Service {
             Bitmap original = cropped.copy(Bitmap.Config.ARGB_8888, false);
             //saveBitmap(cropped);
 
-            cropped.recycle();
-            bitmap.recycle();
-
 
             if (threadStarted){
-                executorService.submit(() -> {
+                latestSeconds = now;
+                Bitmap finalCropped = cropped;
+
+                executorService.execute(() -> {
+                    try {
 //                prepareImageAndSend(testBitmap, 240, 320);
-                    prepareImageAndSend(original, 240, 320);
+                        prepareImageAndSend(original, 240, 320);
+                    }finally {
+                        finalCropped.recycle();
+                        isProcessing.set(false);
+                    }
                 });
+            }else{
+                bitmap.recycle();
+                isProcessing.set(false);
             }
 
         }, handler);
