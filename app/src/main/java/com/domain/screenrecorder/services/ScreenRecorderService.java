@@ -675,7 +675,8 @@ public class ScreenRecorderService extends Service {
                 // need to debug here
                 if (Components.getNoteApplication() == Constants.HUIONNOTE) {
                     if ((cropRoi.x + cropRoi.width <= bw.cols() && imageData[1] + cropRoi.height <= bw.rows()) &&
-                            (imageData[0] + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows())
+                            (imageData[0] + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows()) &&
+                            (imageData[3] >= 10 && imageData[2] >= 10)
                     ) {
                         croppedMat = new Mat(bw, cropRoi);
 
@@ -692,7 +693,8 @@ public class ScreenRecorderService extends Service {
                     }
                 }else {
                     if ((cropRoi.x + cropRoi.width <= bw.cols() && imageData[1] + cropRoi.height <= bw.rows()) &&
-                            (cropRoi.x + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows())
+                            (cropRoi.x + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows()) &&
+                            (imageData[3] >= 10 && imageData[2] >= 10)
                     ) {
                         croppedMat = new Mat(bw, cropRoi);
 
