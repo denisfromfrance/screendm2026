@@ -74,6 +74,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class ScreenRecorderService extends Service {
@@ -94,6 +95,15 @@ public class ScreenRecorderService extends Service {
     private VirtualDisplay captureVirtualDisplay;
 
     private final AtomicBoolean isProcessing = new AtomicBoolean(false);
+    private final AtomicReference<Bitmap> latestFrame = new AtomicReference<>();
+
+    Image image;
+    Image.Plane plane;
+    ByteBuffer byteBuffer;
+    Bitmap bitmap;
+    Bitmap cropped;
+    Bitmap original;
+    Bitmap finalCropped;
 
     HandlerThread imageThread;
 
@@ -959,7 +969,7 @@ public class ScreenRecorderService extends Service {
 
         imageReader = ImageReader.newInstance(WIDTH, HEIGHT, PixelFormat.RGBA_8888, 2);
         imageReader.setOnImageAvailableListener(reader -> {
-            Image image = reader.acquireLatestImage();
+            image = reader.acquireLatestImage();
             if (image == null) return;
 
             long now = SystemClock.elapsedRealtime();
@@ -973,8 +983,8 @@ public class ScreenRecorderService extends Service {
                 return;
             }
 
-            Image.Plane plane = image.getPlanes()[0];
-            ByteBuffer byteBuffer = plane.getBuffer();
+            plane = image.getPlanes()[0];
+            byteBuffer = plane.getBuffer();
             int pixelStride = plane.getPixelStride();
             int rowStride = plane.getRowStride();
             int rowPadding = rowStride - pixelStride * WIDTH;
@@ -993,33 +1003,52 @@ public class ScreenRecorderService extends Service {
             System.out.println("Row Padding: " + rowPadding);
             System.out.println("Expected: " + WIDTH * pixelStride);
 
-            Bitmap bitmap = Bitmap.createBitmap(WIDTH + rowPadding / pixelStride, HEIGHT, Bitmap.Config.ARGB_8888);
+            bitmap = Bitmap.createBitmap(WIDTH + rowPadding / pixelStride, HEIGHT, Bitmap.Config.ARGB_8888);
             bitmap.copyPixelsFromBuffer(byteBuffer);
 
             int STRIPE = 50;
 
-            Bitmap cropped = Bitmap.createBitmap(bitmap, 0, 0, WIDTH, HEIGHT);
+            cropped = Bitmap.createBitmap(bitmap, 0, 0, WIDTH, HEIGHT);
             if (Components.getNoteApplication() == Constants.IARVEL){
                 cropped = Bitmap.createBitmap(bitmap, STRIPE, 0, WIDTH - (STRIPE * 2), HEIGHT);
             }
 
-            Bitmap original = cropped.copy(Bitmap.Config.ARGB_8888, false);
+            original = cropped.copy(Bitmap.Config.ARGB_8888, false);
+            latestFrame.set(original);
             //saveBitmap(cropped);
 
 
             if (threadStarted){
                 latestSeconds = now;
-                Bitmap finalCropped = cropped;
 
-                executorService.execute(() -> {
-                    try {
-//                        prepareImageAndSend(testBitmap, 240, 320);
-                        prepareImageAndSend(original, 240, 320);
-                    }finally {
-                        finalCropped.recycle();
-                        isProcessing.set(false);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        while (true){
+                            Bitmap bmp = latestFrame.getAndSet(null);
+                            if (bmp != null){
+                                prepareImageAndSend(bmp, 240, 320);
+                                bmp.recycle();
+                            }
+
+                            try{
+                                Thread.sleep(100);
+                            }catch(InterruptedException e){
+                                e.printStackTrace();
+                            }
+                        }
                     }
-                });
+                }).start();
+
+//                executorService.execute(() -> {
+//                    try {
+////                        prepareImageAndSend(testBitmap, 240, 320);
+//                        prepareImageAndSend(original, 240, 320);
+//                    }finally {
+//                        cropped.recycle();
+//                        isProcessing.set(false);
+//                    }
+//                });
             }else{
                 bitmap.recycle();
                 isProcessing.set(false);
