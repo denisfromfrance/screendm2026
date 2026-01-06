@@ -720,7 +720,7 @@ public class ScreenRecorderService extends Service {
                             (cropRoi.x + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows()) &&
                             (imageData[3] >= 10 && imageData[2] >= 10)
                     ) {
-                        croppedMat = new Mat(bw, cropRoi);
+                                                            croppedMat = new Mat(bw, cropRoi);
 
                         System.out.println("Image Data: " + Arrays.toString(imageData));
 
@@ -962,11 +962,13 @@ public class ScreenRecorderService extends Service {
             Image image = reader.acquireLatestImage();
             if (image == null) return;
 
+            /*
             long now = SystemClock.elapsedRealtime();
             if (now - latestSeconds < 1000){
                 image.close();
                 return;
             }
+            */
 
             if (!isProcessing.compareAndSet(false, true)){
                 image.close();
@@ -1008,7 +1010,7 @@ public class ScreenRecorderService extends Service {
 
 
             if (threadStarted){
-                latestSeconds = now;
+                //latestSeconds = now;
                 Bitmap finalCropped = cropped;
 
                 executorService.execute(() -> {
