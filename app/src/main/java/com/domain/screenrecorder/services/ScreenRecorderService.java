@@ -269,7 +269,7 @@ public class ScreenRecorderService extends Service {
         Imgproc.findContours(dilated, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
         if (!isChar){
-            saveImage(dilated);
+//            saveImage(dilated);
             System.out.println("Contour count when detecting lines: " + contours.size());
         }
 
@@ -543,7 +543,7 @@ public class ScreenRecorderService extends Service {
 
         bw = removeNoise(bw);
 
-        saveImage(bw);
+//        saveImage(bw);
 
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 20));
 
@@ -771,7 +771,7 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            saveImage(canvas);
+//            saveImage(canvas);
 
             Mat rgba = new Mat();
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
