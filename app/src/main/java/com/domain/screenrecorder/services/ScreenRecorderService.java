@@ -264,13 +264,14 @@ public class ScreenRecorderService extends Service {
         Mat dilated = Mat.zeros(blackAndWhiteMat.rows(), blackAndWhiteMat.cols(), blackAndWhiteMat.type());
         Imgproc.dilate(blackAndWhiteMat, dilated, kernel);
 
-//        if (!isChar){
-//            saveImage(dilated);
-//        }
-
         List<MatOfPoint> contours = new ArrayList<>();
         Mat hierarchy = new Mat();
         Imgproc.findContours(dilated, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        if (!isChar){
+            saveImage(dilated);
+            System.out.println("Contour count when detecting lines: " + contours.size());
+        }
 
         return contours;
     }
@@ -365,6 +366,7 @@ public class ScreenRecorderService extends Service {
                 }
 
 //            Imgproc.resize(mat, resized, size, 0, 0, Imgproc.INTER_LANCZOS4);
+                saveImage(tempMat);
                 String type = digitClassifier.getType(tempMat);
 //                System.out.println("Type: " + type);
                 if (!type.equals("-")) {
@@ -404,14 +406,6 @@ public class ScreenRecorderService extends Service {
         System.out.println("Lines found: " + boundingBoxes.size());
 
 //        saveImage(bw.submat(boundingBoxes.get(0)));
-
-
-        Bitmap croppedPortion;
-        Mat resized;
-        Size size;
-        int targetHeight = 40;
-        int newWidth = 0;
-        double aspectRatio = 0;
 
         ArrayList<Integer> numberList = new ArrayList<>();
         long total = 0;
@@ -476,11 +470,39 @@ public class ScreenRecorderService extends Service {
 
     public Mat smoothImage(Mat inputImage){
         Mat thick = inputImage.clone();
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(1, 1));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(5, 5));
         //Imgproc.dilate(inputImage, thick, kernel);
         Imgproc.morphologyEx(thick, thick, Imgproc.MORPH_CLOSE, kernel);
 
         return thick;
+    }
+
+    public Mat removeNoise(Mat mat){
+        Mat labels = new Mat();
+        Mat stats = new Mat();
+        Mat centroids = new Mat();
+
+        int numComponents = Imgproc.connectedComponentsWithStats(mat, labels, stats, centroids);
+
+        int MINAREA = 9;
+        Mat cleaned = Mat.zeros(mat.size(), mat.type());
+        for (int i = 1; i < numComponents; i++){
+            int area = (int)stats.get(i, Imgproc.CC_STAT_AREA)[0];
+            if (area >= MINAREA){
+                Mat mask = new Mat();
+                Core.compare(labels, new Scalar(i), mask, Core.CMP_EQ);
+                cleaned.setTo(new Scalar(255), mask);
+            }
+        }
+
+        return cleaned;
+
+//        Mat thick = mat.clone();
+//        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(5, 5));
+//        //Imgproc.dilate(inputImage, thick, kernel);
+//        Imgproc.morphologyEx(thick, thick, Imgproc.MORPH_OPEN, kernel);
+//
+//        return thick;
     }
 
     public TransformedImage transformImageForDisplay(Mat croppedImage, int targetWidth, int targetHeight){
@@ -519,7 +541,9 @@ public class ScreenRecorderService extends Service {
 
         Mat bw = convertToBlackAndWhite(src);
 
-        //saveImage(bw);
+        bw = removeNoise(bw);
+
+        saveImage(bw);
 
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 20));
 
@@ -542,7 +566,7 @@ public class ScreenRecorderService extends Service {
             Imgproc.dilate(bw, dilatedSubmat, kernel, new Point(90, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
         }
 
-        //saveImage(dilatedSubmat);
+//        saveImage(dilatedSubmat);
 
         int subtractingAmountX = 180 / 4;
         int subtractingAmountY = 20 / 4;
@@ -619,8 +643,8 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            if (imageWidth > subtractingAmountX){
-                imageWidth -= subtractingAmountX;
+            if (imageWidth > subtractingAmountX * 2){
+                imageWidth -= subtractingAmountX * 2;
             }
 
             if (imageHeight > subtractingAmountY * 2){
@@ -656,12 +680,12 @@ public class ScreenRecorderService extends Service {
                 org.opencv.core.Rect cropRoi = Imgproc.boundingRect(content.getKey());
                 Integer[] imageData = content.getValue();
 
-                cropRoi.x += (subtractingAmountX / 2);
+//                cropRoi.x += (subtractingAmountX);
                 cropRoi.y += (subtractingAmountY);
                 cropRoi.width = imageData[2];
                 cropRoi.height = imageData[3];
 
-                //Imgproc.rectangle(bw, cropRoi, new Scalar(255), 2);
+//                Imgproc.rectangle(bw, cropRoi, new Scalar(255), 2);
 
                 System.out.println("CropX: " + cropRoi.x);
                 System.out.println("CropY: " + cropRoi.y);
@@ -747,7 +771,7 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            //saveImage(canvas);
+            saveImage(canvas);
 
             Mat rgba = new Mat();
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
@@ -989,7 +1013,7 @@ public class ScreenRecorderService extends Service {
 
                 executorService.execute(() -> {
                     try {
-//                prepareImageAndSend(testBitmap, 240, 320);
+//                        prepareImageAndSend(testBitmap, 240, 320);
                         prepareImageAndSend(original, 240, 320);
                     }finally {
                         finalCropped.recycle();
@@ -1160,7 +1184,7 @@ public class ScreenRecorderService extends Service {
             e.printStackTrace();
         }
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.huionnotelatestnumbers);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.numberswithgoodspaceing2);
 //        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.correctnumberrepresentation);
 //        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.iarvel3);
         testBitmap = BitmapFactory.decodeStream(is);
