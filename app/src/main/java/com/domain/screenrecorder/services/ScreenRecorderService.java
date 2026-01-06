@@ -376,7 +376,7 @@ public class ScreenRecorderService extends Service {
                 }
 
 //            Imgproc.resize(mat, resized, size, 0, 0, Imgproc.INTER_LANCZOS4);
-                saveImage(tempMat);
+                //saveImage(tempMat);
                 String type = digitClassifier.getType(tempMat);
 //                System.out.println("Type: " + type);
                 if (!type.equals("-")) {
@@ -1021,6 +1021,7 @@ public class ScreenRecorderService extends Service {
             if (threadStarted){
                 latestSeconds = now;
 
+                /*
                 new Thread(new Runnable() {
                     @Override
                     public void run() {
@@ -1039,16 +1040,17 @@ public class ScreenRecorderService extends Service {
                         }
                     }
                 }).start();
+                 */
 
-//                executorService.execute(() -> {
-//                    try {
-////                        prepareImageAndSend(testBitmap, 240, 320);
-//                        prepareImageAndSend(original, 240, 320);
-//                    }finally {
-//                        cropped.recycle();
-//                        isProcessing.set(false);
-//                    }
-//                });
+                executorService.execute(() -> {
+                    try {
+                        //prepareImageAndSend(testBitmap, 240, 320);
+                        prepareImageAndSend(original, 240, 320);
+                    }finally {
+                        cropped.recycle();
+                        isProcessing.set(false);
+                    }
+                });
             }else{
                 bitmap.recycle();
                 isProcessing.set(false);
