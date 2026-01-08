@@ -41,7 +41,10 @@ import androidx.core.app.NotificationCompat;
 import com.domain.screenrecorder.R;
 import com.domain.screenrecorder.states.Components;
 import com.domain.screenrecorder.states.Constants;
+import com.domain.screenrecorder.states.FrameBuffer;
 import com.domain.screenrecorder.states.TransformedImage;
+import com.domain.screenrecorder.utils.Consumer;
+import com.domain.screenrecorder.utils.ConsumerThread;
 import com.domain.screenrecorder.utils.DigitClassifier;
 
 import org.opencv.android.Utils;
@@ -120,6 +123,8 @@ public class ScreenRecorderService extends Service {
     Mat writingAreaFilterKernel;
 
     Mat testImageMat;
+
+    boolean consumerThreadIsRunning = false;
 
 
     Bitmap outputBitmap;
@@ -836,7 +841,7 @@ public class ScreenRecorderService extends Service {
 
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
 //            saveImage(canvas);
-//            saveImage(rgba);
+            saveImage(rgba);
 
             if (Components.getOrientation() == 0){
                 Mat rotated = new Mat();
@@ -1058,92 +1063,107 @@ public class ScreenRecorderService extends Service {
         testImageMat = new Mat(testBitmap.getHeight(), testBitmap.getWidth(), CvType.CV_8UC3);
 
         imageReader = ImageReader.newInstance(WIDTH, HEIGHT, PixelFormat.RGBA_8888, 2);
-        imageReader.setOnImageAvailableListener(reader -> {
-            image = reader.acquireLatestImage();
-            if (image == null) return;
+        Mat imageMat = Mat.zeros(imageReader.getHeight(), imageReader.getWidth(), CvType.CV_8UC4);
+        final Mat[] gray = {new Mat()};
 
-//            long now = SystemClock.elapsedRealtime();
-//            if (now - latestSeconds < 1000){
+        Bitmap bitmap = Bitmap.createBitmap(imageReader.getWidth(), imageReader.getHeight(), Bitmap.Config.ARGB_8888);
+
+        captureRunnable = new Runnable() {
+            @Override
+            public void run() {
+                Image latestImage = imageReader.acquireLatestImage();
+                if (latestImage != null){
+                    PixelCopy.request(imageReader.getSurface(), bitmap, new PixelCopy.OnPixelCopyFinishedListener() {
+                        @Override
+                        public void onPixelCopyFinished(int copyResult) {
+                            if (copyResult == PixelCopy.SUCCESS){
+                                Utils.bitmapToMat(bitmap, imageMat);
+                                Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
+                                if (gray[0].cols() > 150){
+                                    gray[0] = gray[0].submat(0, gray[0].rows(), 50, gray[0].cols()).clone();
+                                }
+                                prepareImageAndSend(gray[0], 240, 320);
+                            }
+                            latestImage.close();
+                        }
+                    }, handler);
+                }
+                handler.postDelayed(this, 1500);
+            }
+        };
+
+        handler.post(captureRunnable);
+
+//        imageReader.setOnImageAvailableListener(reader -> {
+//            image = reader.acquireLatestImage();
+//            if (image == null) return;
+//
+////            long now = SystemClock.elapsedRealtime();
+////            if (now - latestSeconds < 1000){
+////                image.close();
+////                return;
+////            }
+//
+//            if (!isProcessing.compareAndSet(false, true)){
 //                image.close();
 //                return;
 //            }
-
-            if (!isProcessing.compareAndSet(false, true)){
-                image.close();
-                return;
-            }
-
-//            Mat gray = yuvToGray(image);
-//            saveImage(gray);
-
-            plane = image.getPlanes()[0];
-            byteBuffer = plane.getBuffer();
-//            int pixelStride = plane.getPixelStride();
-            int rowStride = plane.getRowStride();
-//            int rowPadding = rowStride - pixelStride * WIDTH;
-
-            Mat rgbaImage = new Mat(HEIGHT, WIDTH, CvType.CV_8UC4);
-            byte[] row = new byte[rowStride];
-
-            byteBuffer.rewind();
-
-            for (int y = 0; y < HEIGHT; y++) {
-                byteBuffer.position(y * rowStride);
-                byteBuffer.get(row);
-                rgbaImage.put(y, 0, row, 0, WIDTH * 4);
-            }
-
-            image.close();
-
-            Mat gray = new Mat();
-            Imgproc.cvtColor(rgbaImage, gray, Imgproc.COLOR_RGBA2GRAY);
-            if (gray.cols() > 150){
-                gray = gray.submat(0, gray.rows(), 50, gray.cols() - 50).clone();
-            }
-            rgbaImage.release();
-//            saveImage(gray);
-
-//            System.out.println("Pixel Stride: " + pixelStride);
-            System.out.println("Row Stride: " + rowStride);
-//            System.out.println("Row Padding: " + rowPadding);
-//            System.out.println("Expected: " + WIDTH * pixelStride);
-
-//            bitmap = Bitmap.createBitmap(WIDTH + rowPadding / pixelStride, HEIGHT, Bitmap.Config.ARGB_8888);
-//            bitmap.copyPixelsFromBuffer(byteBuffer);
-
-//            int STRIPE = 50;
-
-//            cropped = Bitmap.createBitmap(bitmap, 0, 0, WIDTH, HEIGHT);
-//            if (Components.getNoteApplication() == Constants.IARVEL){
-//                cropped = Bitmap.createBitmap(bitmap, STRIPE, 0, WIDTH - (STRIPE * 2), HEIGHT);
+//
+////            Mat gray = yuvToGray(image);
+////            saveImage(gray);
+//
+//            plane = image.getPlanes()[0];
+//            byteBuffer = plane.getBuffer();
+////            int pixelStride = plane.getPixelStride();
+//            int rowStride = plane.getRowStride();
+////            int rowPadding = rowStride - pixelStride * WIDTH;
+//
+//            Mat rgbaImage = new Mat(HEIGHT, WIDTH, CvType.CV_8UC4);
+//            byte[] row = new byte[rowStride];
+//
+//            byteBuffer.rewind();
+//
+//            for (int y = 0; y < HEIGHT; y++) {
+//                byteBuffer.position(y * rowStride);
+//                byteBuffer.get(row);
+//                rgbaImage.put(y, 0, row, 0, WIDTH * 4);
 //            }
-
-//            original = cropped.copy(Bitmap.Config.ARGB_8888, false);
-//            latestFrame.set(original);
-//            saveBitmap(cropped);
-
-
-            if (threadStarted){
-//                latestSeconds = now;
-
-                Mat finalGray = gray;
-                executorService.execute(() -> {
-                    try {
-                        Utils.bitmapToMat(testBitmap, testImageMat);
-                        Imgproc.cvtColor(testImageMat, testImageMat, Imgproc.COLOR_BGR2GRAY);
-                        prepareImageAndSend(testImageMat, 240, 320);
-//                        prepareImageAndSend(finalGray, 240, 320);
-                    }finally {
-//                        cropped.recycle();
-                        isProcessing.set(false);
-                    }
-                });
-            }else{
-                bitmap.recycle();
-                isProcessing.set(false);
-            }
-
-        }, handler);
+//
+//            image.close();
+//
+//            Mat gray = new Mat();
+//            Imgproc.cvtColor(rgbaImage, gray, Imgproc.COLOR_RGBA2GRAY);
+//            if (gray.cols() > 150){
+//                gray = gray.submat(0, gray.rows(), 50, gray.cols() - 50).clone();
+//            }
+//
+//            consumer.captureFrame(gray);
+//
+//            rgbaImage.release();
+////            saveImage(gray);
+//
+//
+////            if (threadStarted){
+//////                latestSeconds = now;
+////
+////                Mat finalGray = gray;
+////                executorService.execute(() -> {
+////                    try {
+//////                        Utils.bitmapToMat(testBitmap, testImageMat);
+//////                        Imgproc.cvtColor(testImageMat, testImageMat, Imgproc.COLOR_BGR2GRAY);
+//////                        prepareImageAndSend(testImageMat, 240, 320);
+////                        prepareImageAndSend(finalGray, 240, 320);
+////                    }finally {
+//////                        cropped.recycle();
+////                        isProcessing.set(false);
+////                    }
+////                });
+////            }else{
+////                bitmap.recycle();
+////                isProcessing.set(false);
+////            }
+//
+//        }, handler);
 
         captureVirtualDisplay = mediaProjection.createVirtualDisplay(
                 "Capture VDisplay",
@@ -1265,8 +1285,8 @@ public class ScreenRecorderService extends Service {
             @Override
             public void run() {
                 try {
-//                    socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-                    socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+                    socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+//                    socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                     outputStream = socket.getOutputStream();
                     Components.setConnectionStatus(1);
                     System.out.println("Connected to the server");
@@ -1384,6 +1404,10 @@ public class ScreenRecorderService extends Service {
             }catch(IOException exception){
                 exception.printStackTrace();
             }
+        }
+
+        if (imageReader != null){
+            imageReader.close();
         }
 
         stopForeground(true);
