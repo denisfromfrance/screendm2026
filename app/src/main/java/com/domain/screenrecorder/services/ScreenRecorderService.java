@@ -841,7 +841,7 @@ public class ScreenRecorderService extends Service {
 
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
 //            saveImage(canvas);
-            saveImage(rgba);
+            //saveImage(rgba);
 
             if (Components.getOrientation() == 0){
                 Mat rotated = new Mat();
