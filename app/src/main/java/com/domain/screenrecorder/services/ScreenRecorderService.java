@@ -639,6 +639,8 @@ public class ScreenRecorderService extends Service {
             int imageWidth = r.width;
             int imageHeight = r.height;
 
+//            Imgproc.rectangle(bw, r, new Scalar(255), 2);
+
             if (r.x < xStart){
                 xStart = r.x;
             }
@@ -690,7 +692,11 @@ public class ScreenRecorderService extends Service {
             }else {
                 submats.put(c, new Integer[]{(imagePosX) + subtractingAmountX, (imagePosY - yStart), imageWidth, imageHeight});
             }
+            System.out.println("Image PosX: " + imagePosX);
+            System.out.println("Image PosY: " + imagePosY);
         }
+
+//        saveImage(bw);
 
         if (Components.getOrientation() == 0){
             if (outputBitmap.getWidth() == targetWidth && outputBitmap.getHeight() == targetHeight){
@@ -833,14 +839,33 @@ public class ScreenRecorderService extends Service {
 
             if (Components.isDoCalculation()){
                 Mat result = extractLines(canvas);
-                if (newPosY > 0 && result.cols() <= resized.cols() && newPosY + resized.rows() + result.rows() < canvas.rows()){
-                    org.opencv.core.Rect answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows(), result.cols(), result.rows());
+                org.opencv.core.Rect answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows(), result.cols(), result.rows());
+                if (newPosY >= 0 && result.cols() <= canvas.cols() && newPosY + resized.rows() + result.rows() <= canvas.rows()){
                     result.copyTo(canvas.submat(answerPositionRect));
+                }else{
+                    if (newPosY > 0){
+                        int pointsToReduce = (newPosY + resized.rows() + result.rows()) - targetHeight;
+                        if (newPosY >= pointsToReduce){
+                            newPosY -= pointsToReduce;
+
+                            canvas.setTo(new Scalar(0));
+                            roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
+                            targetArea = canvas.submat(roi);
+                            resized.copyTo(targetArea);
+
+                            answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows(), result.cols(), result.rows());
+                        }else{
+                            answerPositionRect = new org.opencv.core.Rect(0, resized.rows() - result.rows(), result.cols(), result.rows());
+                        }
+                    }else{
+                        answerPositionRect = new org.opencv.core.Rect(0, resized.rows() - result.rows(), result.cols(), result.rows());
+                    }
                 }
+                result.copyTo(canvas.submat(answerPositionRect));
             }
 
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
-//            saveImage(canvas);
+            saveImage(canvas);
             //saveImage(rgba);
 
             if (Components.getOrientation() == 0){
@@ -1080,7 +1105,7 @@ public class ScreenRecorderService extends Service {
                                 Utils.bitmapToMat(bitmap, imageMat);
                                 Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
                                 if (gray[0].cols() > 150){
-                                    gray[0] = gray[0].submat(0, gray[0].rows(), 50, gray[0].cols()).clone();
+                                    gray[0] = gray[0].submat(0, gray[0].rows(), 50, gray[0].cols() - 50).clone();
                                 }
                                 prepareImageAndSend(gray[0], 240, 320);
                             }
