@@ -103,6 +103,11 @@ public class ScreenRecorderService extends Service {
     private final AtomicBoolean isProcessing = new AtomicBoolean(false);
     private final AtomicReference<Bitmap> latestFrame = new AtomicReference<>();
 
+    HandlerThread networkConnectionHandlerThread;
+    Handler networkConnectionHandler;
+
+    boolean connectedToServer = false;
+
     Image image;
     Image.Plane plane;
     ByteBuffer byteBuffer;
@@ -146,6 +151,7 @@ public class ScreenRecorderService extends Service {
     Intent data;
 
     private boolean threadStarted = false;
+    private boolean startedScreenRecording = false;
 
 
     private Mat convertToBlackAndWhite(Mat mat){
@@ -484,16 +490,19 @@ public class ScreenRecorderService extends Service {
 
         }
 //        saveImage(bw);
+
         calculationResult.setTo(new Scalar(0));
         int font = Imgproc.FONT_HERSHEY_SIMPLEX;
         double fontScale = 0.7;
         int thickness = 2;
         Size textSize = Imgproc.getTextSize(String.valueOf(total), font, fontScale, thickness, null);
         int x = (int)((bw.cols() - textSize.width) / 2);
+
         if (x < 0){
             x = 0;
         }
         int y = 30;
+
         Imgproc.putText(calculationResult, String.valueOf(total), new Point(x, y), font, fontScale, new Scalar(255), thickness);
 
         System.out.println("Numbers: " + Arrays.toString(numberList.toArray()));
@@ -949,22 +958,25 @@ public class ScreenRecorderService extends Service {
                 try{
                     Components.setConnectionStatus(0);
                     outputStream.close();
+
+                    outputStream = null;
+                    connectedToServer = false;
                     connectToServer();
 
-                    try {
-                        Components.setConnectionStatus(1);
-                        outputStream.write(header.getBytes(StandardCharsets.UTF_8));
-                        outputStream.flush();
-
-                        for (int i = 0; i < totalChunks; i++){
-                            int start = i * chunkSize;
-                            int length = Math.min(chunkSize, bytes.length - start);
-                            outputStream.write(bytes, start, length);
-                            outputStream.flush();
-                        }
-                    }catch(IOException e){
-                        e.printStackTrace();
-                    }
+//                    try {
+//                        Components.setConnectionStatus(1);
+//                        outputStream.write(header.getBytes(StandardCharsets.UTF_8));
+//                        outputStream.flush();
+//
+//                        for (int i = 0; i < totalChunks; i++){
+//                            int start = i * chunkSize;
+//                            int length = Math.min(chunkSize, bytes.length - start);
+//                            outputStream.write(bytes, start, length);
+//                            outputStream.flush();
+//                        }
+//                    }catch(IOException e){
+//                        e.printStackTrace();
+//                    }
                 }catch(IOException e){
                     e.printStackTrace();
                 }
@@ -1085,7 +1097,7 @@ public class ScreenRecorderService extends Service {
 
         ExecutorService executorService = Executors.newSingleThreadExecutor();
 
-        testImageMat = new Mat(testBitmap.getHeight(), testBitmap.getWidth(), CvType.CV_8UC3);
+        testImageMat = new Mat(testBitmap.getHeight(), testBitmap.getWidth(), CvType.CV_8UC4);
 
         imageReader = ImageReader.newInstance(WIDTH, HEIGHT, PixelFormat.RGBA_8888, 2);
         Mat imageMat = Mat.zeros(imageReader.getHeight(), imageReader.getWidth(), CvType.CV_8UC4);
@@ -1107,7 +1119,19 @@ public class ScreenRecorderService extends Service {
                                 if (gray[0].cols() > 150){
                                     gray[0] = gray[0].submat(0, gray[0].rows(), 50, gray[0].cols() - 50).clone();
                                 }
-                                prepareImageAndSend(gray[0], 240, 320);
+
+//                                Utils.bitmapToMat(testBitmap, testImageMat);
+//                                final Mat[] gray1 = {new Mat()};
+//                                Imgproc.cvtColor(testImageMat, gray1[0], Imgproc.COLOR_RGBA2GRAY);
+//
+//                                if (gray1[0].cols() > 150){
+//                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 50, gray1[0].cols() - 50).clone();
+//                                }
+
+                                if (connectedToServer) {
+                                    prepareImageAndSend(gray[0], 240, 320);
+//                                    prepareImageAndSend(gray1[0], 240, 320);
+                                }
                             }
                             latestImage.close();
                         }
@@ -1306,21 +1330,50 @@ public class ScreenRecorderService extends Service {
     }
 
     public void connectToServer(){
-        Thread networkThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-//                    socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
-                    outputStream = socket.getOutputStream();
-                    Components.setConnectionStatus(1);
-                    System.out.println("Connected to the server");
-                } catch (IOException exception) {
-                    exception.printStackTrace();
+        if (!connectedToServer) {
+            networkConnectionHandlerThread = new HandlerThread("Network Connection Handler Thread");
+            networkConnectionHandlerThread.start();
+            networkConnectionHandler = new Handler(networkConnectionHandlerThread.getLooper());
+
+            networkConnectionHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        System.out.println("Trying to connect to the server...");
+//                        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+                        socket = new Socket();
+                        socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+                        outputStream = socket.getOutputStream();
+                        Components.setConnectionStatus(1);
+                        connectedToServer = true;
+                        System.out.println("Connected to the server");
+                    } catch (IOException exception) {
+                        exception.printStackTrace();
+                        Components.setConnectionStatus(0);
+                        System.out.println("Trying to connect to the server in 1 sec...");
+                        if (startedScreenRecording) {
+                            networkConnectionHandler.postDelayed(this, 1000);
+                        }
+                    }
                 }
-            }
-        });
-        networkThread.start();
+            });
+
+//            Thread networkThread = new Thread(new Runnable() {
+//                @Override
+//                public void run() {
+//                    try {
+//                        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+////                    socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+//                        outputStream = socket.getOutputStream();
+//                        Components.setConnectionStatus(1);
+//                        System.out.println("Connected to the server");
+//                    } catch (IOException exception) {
+//                        exception.printStackTrace();
+//                    }
+//                }
+//            });
+//            networkThread.start();
+        }
     }
 
     @Override
@@ -1349,8 +1402,8 @@ public class ScreenRecorderService extends Service {
 
         originalImageCleaningKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(10, 10));
         writingAreaFilterKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(50, 70));
-        charExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(4, 3));
-        lineExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(80, 3));
+        charExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(4, 2));
+        lineExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(80, 1));
 
         canvas = Mat.zeros(320, 240, CvType.CV_8UC1);
         rgba = Mat.zeros(canvas.rows(), canvas.cols(), CvType.CV_8UC4);
@@ -1359,12 +1412,14 @@ public class ScreenRecorderService extends Service {
         calculationResult = Mat.zeros(32, 240, CvType.CV_8UC1);
 
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.numberswithgoodspaceing2);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.huion23);
 //        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.correctnumberrepresentation);
 //        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.iarvel3);
         testBitmap = BitmapFactory.decodeStream(is);
 
-        socket = new Socket();
+//        socket = new Socket();
+
+        startedScreenRecording = true;
 
         if (!threadStarted){
             connectToServer();
@@ -1404,6 +1459,14 @@ public class ScreenRecorderService extends Service {
 
         if (captureVirtualDisplay != null){
             captureVirtualDisplay.release();
+        }
+
+        if (networkConnectionHandlerThread != null){
+            networkConnectionHandlerThread.quitSafely();
+        }
+
+        if (imageThread != null){
+            imageThread.quitSafely();
         }
 
         if (handler != null){
