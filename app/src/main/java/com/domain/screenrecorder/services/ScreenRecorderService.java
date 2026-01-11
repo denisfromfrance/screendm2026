@@ -481,11 +481,12 @@ public class ScreenRecorderService extends Service {
                             total += n;
                             break;
                         case 2:
-                            total -= n;
-                            break;
-                        case 3:
                             total *= n;
                             break;
+                            /*
+                        case 3:
+                            total *= n;
+                            break;*/
                         default:
                             break;
                     }
@@ -895,14 +896,14 @@ public class ScreenRecorderService extends Service {
                             public void run() {
                                 currentDisplayingNumber = "";
                             }
-                        }, Components.getDelay() * 1000);
+                        }, Components.getDelay() * 1000L);
                     }
                 }
 
-                textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_PLAIN, 1.0, 1, null);
+                textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, 2, null);
                 centerX = (int)((canvas.cols() - textSize.width) / 2);
                 detectedNumbers.setTo(new Scalar(0));
-                Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, newPosY + 20), Imgproc.FONT_HERSHEY_PLAIN, 1.0, new Scalar(255), 1);
+                Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, newPosY + 20), Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(255), 2);
 
 //                detectedNumbers.setTo(new Scalar(0));
 //                for (int i = 0; i < numberList.size(); i++){
@@ -1160,7 +1161,7 @@ public class ScreenRecorderService extends Service {
                                 Utils.bitmapToMat(bitmap, imageMat);
                                 Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
                                 if (gray[0].cols() > 150){
-                                    gray[0] = gray[0].submat(0, gray[0].rows(), 50, gray[0].cols() - 50).clone();
+                                    gray[0] = gray[0].submat(0, gray[0].rows(), 50, gray[0].cols() - 20).clone();
                                 }
 
 //                                Utils.bitmapToMat(testBitmap, testImageMat);
@@ -1383,9 +1384,9 @@ public class ScreenRecorderService extends Service {
                 public void run() {
                     try {
                         System.out.println("Trying to connect to the server...");
-//                        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
                         socket = new Socket();
-                        socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+                        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+//                        socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                         outputStream = socket.getOutputStream();
                         Components.setConnectionStatus(1);
                         connectedToServer = true;
