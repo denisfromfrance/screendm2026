@@ -53,6 +53,7 @@ import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.Point;
+import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
@@ -100,6 +101,8 @@ public class ScreenRecorderService extends Service {
     private Surface captureSurface;
     private VirtualDisplay captureVirtualDisplay;
 
+    ArrayList<Integer> numberList = new ArrayList<>();
+
     private final AtomicBoolean isProcessing = new AtomicBoolean(false);
     private final AtomicReference<Bitmap> latestFrame = new AtomicReference<>();
 
@@ -122,6 +125,7 @@ public class ScreenRecorderService extends Service {
     Mat rgba;
     Mat digitMat;
     Mat calculationResult;
+    Mat detectedNumbers;
     Mat mainDilatedMat;
     Mat dilatedOriginalMat;
     Mat originalImageCleaningKernel;
@@ -152,6 +156,8 @@ public class ScreenRecorderService extends Service {
 
     private boolean threadStarted = false;
     private boolean startedScreenRecording = false;
+    private int latestDisplayedNumber = 0;
+    private String currentDisplayingNumber = "";
 
 
     private Mat convertToBlackAndWhite(Mat mat){
@@ -449,7 +455,8 @@ public class ScreenRecorderService extends Service {
 
 //        saveImage(bw.submat(boundingBoxes.get(0)));
 
-        ArrayList<Integer> numberList = new ArrayList<>();
+        numberList.clear();
+
         long total = 0;
         for (org.opencv.core.Rect boundingBox : boundingBoxes){
 //            if (boundingBox.width > 50) {
@@ -502,7 +509,6 @@ public class ScreenRecorderService extends Service {
             x = 0;
         }
         int y = 30;
-
         Imgproc.putText(calculationResult, String.valueOf(total), new Point(x, y), font, fontScale, new Scalar(255), thickness);
 
         System.out.println("Numbers: " + Arrays.toString(numberList.toArray()));
@@ -740,9 +746,9 @@ public class ScreenRecorderService extends Service {
         if (contours.size() > 0) {
 
             groupImageWidth = (xEnd - xStart);
-            if (groupImageWidth > subtractingAmountX * 2){
-                groupImageWidth -= (subtractingAmountX * 2);
-            }
+//            if (groupImageWidth > subtractingAmountX * 2){
+//                groupImageWidth -= (subtractingAmountX * 2);
+//            }
             groupImageHeight = (yEnd - yStart) + (subtractingAmountY * 2);
 
 //            Imgproc.rectangle(bw, new org.opencv.core.Rect(xStart, yStart, groupImageWidth, groupImageHeight), new Scalar(255), 2);
@@ -765,7 +771,7 @@ public class ScreenRecorderService extends Service {
                 org.opencv.core.Rect cropRoi = Imgproc.boundingRect(content.getKey());
                 Integer[] imageData = content.getValue();
 
-//                cropRoi.x += (subtractingAmountX);
+                cropRoi.x += (subtractingAmountX);
 //                cropRoi.x += 15;
                 cropRoi.y += (subtractingAmountY);
                 cropRoi.width = imageData[2];
@@ -839,6 +845,9 @@ public class ScreenRecorderService extends Service {
             System.out.println(transformedImage);
 
             Mat resized = transformedImage.getImage();
+            if (newPosY > 10) {
+                newPosY = 10;
+            }
 //            saveImage(resized);
             org.opencv.core.Rect roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
             Mat targetArea = canvas.submat(roi);
@@ -871,6 +880,40 @@ public class ScreenRecorderService extends Service {
                     }
                 }
                 result.copyTo(canvas.submat(answerPositionRect));
+                newPosY = answerPositionRect.y + result.rows() + 30;
+
+
+                Size textSize;
+                int centerX;
+                String number;
+                if (numberList.size()> 0) {
+                    if (latestDisplayedNumber != numberList.get(numberList.size() - 1)) {
+                        latestDisplayedNumber = numberList.get(numberList.size() - 1);
+                        currentDisplayingNumber = String.valueOf(latestDisplayedNumber);
+                        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                currentDisplayingNumber = "";
+                            }
+                        }, 3000);
+                    }
+                }
+
+                textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_PLAIN, 1.0, 1, null);
+                centerX = (int)((canvas.cols() - textSize.width) / 2);
+                detectedNumbers.setTo(new Scalar(0));
+                Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, newPosY + 20), Imgproc.FONT_HERSHEY_PLAIN, 1.0, new Scalar(255), 1);
+
+//                detectedNumbers.setTo(new Scalar(0));
+//                for (int i = 0; i < numberList.size(); i++){
+//                    number = String.valueOf(numberList.get(i));
+//                    textSize = Imgproc.getTextSize(number, Imgproc.FONT_HERSHEY_PLAIN, 1.0, 1, null);
+//                    centerX = (int)((canvas.cols() - textSize.width) / 2);
+//                    Imgproc.putText(detectedNumbers, number, new Point(centerX, newPosY + i * 20), Imgproc.FONT_HERSHEY_PLAIN, 1.0, new Scalar(255), 1);
+//                }
+
+//                detectedNumbers.copyTo(canvas.submat(new Rect(0, 0, detectedNumbers.cols(), detectedNumbers.rows())));
+                Core.bitwise_or(detectedNumbers, canvas, canvas);
             }
 
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
@@ -1410,6 +1453,7 @@ public class ScreenRecorderService extends Service {
         outputBitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
         digitMat = Mat.zeros(32, 240, CvType.CV_8UC1);
         calculationResult = Mat.zeros(32, 240, CvType.CV_8UC1);
+        detectedNumbers = Mat.zeros(320, 240, CvType.CV_8UC1);
 
 
         InputStream is = getApplicationContext().getResources().openRawResource(R.raw.huion23);
