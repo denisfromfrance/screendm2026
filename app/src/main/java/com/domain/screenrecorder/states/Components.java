@@ -30,6 +30,8 @@ public class Components {
 
     private static boolean doCalculation = false;
 
+    private static int delay = 3;
+
     public static void setApplicationContext(Context context){
         if (applicationContext == null){
             applicationContext = context;
@@ -98,5 +100,13 @@ public class Components {
 
     public static int getOrientation(){
         return orientation;
+    }
+
+    public static int getDelay() {
+        return delay;
+    }
+
+    public static void setDelay(int delay) {
+        Components.delay = delay;
     }
 }

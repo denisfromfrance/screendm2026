@@ -23,9 +23,12 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ImageButton;
+import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 
@@ -46,6 +49,8 @@ public class MainActivity extends AppCompatActivity {
 
     TextView connectionStatus;
     View connectionStatusIcon;
+
+    Spinner spinner;
 
     ImagePullThread imagePullThread;
 
@@ -178,6 +183,24 @@ public class MainActivity extends AppCompatActivity {
         Components.setOrientation(1);
         //Drawable largeIcon = resize(R.mipmap.app_logo_round, 3);
 //        toolbar.setNavigationIcon(R.mipmap.app_logo_round);
+
+        spinner = findViewById(R.id.spinner);
+        Integer[] seconds = new Integer[]{3, 4, 5};
+        ArrayAdapter<Integer> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, seconds);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                Components.setDelay(seconds[position]);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
     }
 
     @Override

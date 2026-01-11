@@ -895,7 +895,7 @@ public class ScreenRecorderService extends Service {
                             public void run() {
                                 currentDisplayingNumber = "";
                             }
-                        }, 3000);
+                        }, Components.getDelay() * 1000);
                     }
                 }
 
