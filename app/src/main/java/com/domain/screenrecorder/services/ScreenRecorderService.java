@@ -536,17 +536,22 @@ public class ScreenRecorderService extends Service {
 
         int numComponents = Imgproc.connectedComponentsWithStats(mat, labels, stats, centroids);
 
-        int MINAREA = 9;
+        int MINAREA = 4;
         Mat cleaned = Mat.zeros(mat.size(), mat.type());
         for (int i = 1; i < numComponents; i++){
             int area = (int)stats.get(i, Imgproc.CC_STAT_AREA)[0];
             if (area >= MINAREA){
                 Mat mask = new Mat();
                 Core.compare(labels, new Scalar(i), mask, Core.CMP_EQ);
-                cleaned.setTo(new Scalar(255), mask);
+
+                // Extract pixels of this component
+                Mat grayMask = new Mat();
+                Core.inRange(mat, new Scalar(90), new Scalar(250), grayMask);
+                Core.bitwise_or(mat, grayMask, cleaned);
+//                cleaned.setTo(new Scalar(255), mask);
             }
         }
-
+//        saveImage(cleaned);
         return cleaned;
     }
 
@@ -585,16 +590,19 @@ public class ScreenRecorderService extends Service {
 //        Utils.bitmapToMat(original, src);
 
 //        saveImage(original);
+        Mat bw = removeNoise(original);
+        saveImage(bw);
 
-        Mat bw = convertToBlackAndWhite(original);
+        bw = convertToBlackAndWhite(bw);
+//        saveImage(bw);
 
 //        bw = bw.submat(50, bw.rows() - 100, 50, bw.cols() - 100).clone();
 
-        bw = removeNoise(bw);
+        Imgproc.threshold(bw, bw, 250, 255, bw.type());
 
 //        saveImage(bw);
 
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 40));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 20));
         if (mainDilatedMat == null){
             mainDilatedMat = Mat.zeros(bw.rows(), bw.cols(), bw.type());
         }else{
@@ -602,7 +610,7 @@ public class ScreenRecorderService extends Service {
         }
 
         int subtractingAmount = 0;
-        if (bw.rows() > 40){
+        if (bw.rows() > 20){
             subtractingAmount = 10;
         }
 
@@ -642,7 +650,6 @@ public class ScreenRecorderService extends Service {
 
         if (Components.getNoteApplication() == Constants.HUIONNOTE){
             if (contours.size() > 1) {
-                contours.remove(contours.size() - 1);
                 contours.remove(0);
             }
         }
@@ -1425,8 +1432,8 @@ public class ScreenRecorderService extends Service {
                     try {
                         System.out.println("Trying to connect to the server...");
                         socket = new Socket();
-                        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-//                        socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+//                        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+                        socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                         outputStream = socket.getOutputStream();
                         Components.setConnectionStatus(1);
                         connectedToServer = true;
