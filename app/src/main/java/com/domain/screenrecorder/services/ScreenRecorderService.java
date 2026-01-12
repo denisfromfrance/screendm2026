@@ -1432,8 +1432,8 @@ public class ScreenRecorderService extends Service {
                     try {
                         System.out.println("Trying to connect to the server...");
                         socket = new Socket();
-//                        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-                        socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+                        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+//                        socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                         outputStream = socket.getOutputStream();
                         Components.setConnectionStatus(1);
                         connectedToServer = true;
