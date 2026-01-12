@@ -51,6 +51,7 @@ import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfDouble;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
@@ -245,7 +246,7 @@ public class ScreenRecorderService extends Service {
                         maxY = contourBoundingBox.y + contourBoundingBox.height;
                     }
                 }
-                canvasArea = new org.opencv.core.Rect(minX, minY, maxX - minX, maxY - minY);
+                canvasArea = new org.opencv.core.Rect(minX + 25, minY, maxX - minX, maxY - minY);
                 src = mat.submat(canvasArea);
             }
 
@@ -583,14 +584,17 @@ public class ScreenRecorderService extends Service {
 //        Mat src = Mat.zeros(original.getHeight(), original.getWidth(), CvType.CV_8UC3);
 //        Utils.bitmapToMat(original, src);
 
+//        saveImage(original);
+
         Mat bw = convertToBlackAndWhite(original);
 
 //        bw = bw.submat(50, bw.rows() - 100, 50, bw.cols() - 100).clone();
 
         bw = removeNoise(bw);
+
 //        saveImage(bw);
 
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 20));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 40));
         if (mainDilatedMat == null){
             mainDilatedMat = Mat.zeros(bw.rows(), bw.cols(), bw.type());
         }else{
@@ -598,7 +602,7 @@ public class ScreenRecorderService extends Service {
         }
 
         int subtractingAmount = 0;
-        if (bw.rows() > 20){
+        if (bw.rows() > 40){
             subtractingAmount = 10;
         }
 
@@ -616,7 +620,7 @@ public class ScreenRecorderService extends Service {
             Imgproc.dilate(bw, dilatedSubmat, kernel, new Point(90, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
         }
 
-        saveImage(dilatedSubmat);
+//        saveImage(dilatedSubmat);
 
         int subtractingAmountX = 180 / 4;
         int subtractingAmountY = 20 / 4;
@@ -635,6 +639,13 @@ public class ScreenRecorderService extends Service {
                 return Integer.compare(rect1.y, rect2.y);
             }
         });
+
+        if (Components.getNoteApplication() == Constants.HUIONNOTE){
+            if (contours.size() > 1) {
+                contours.remove(contours.size() - 1);
+                contours.remove(0);
+            }
+        }
 
         Map<MatOfPoint, Integer[]> submats = new LinkedHashMap<>();
 
@@ -918,7 +929,7 @@ public class ScreenRecorderService extends Service {
             }
 
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
-            saveImage(canvas);
+//            saveImage(canvas);
             //saveImage(rgba);
 
             if (Components.getOrientation() == 0){
@@ -1160,8 +1171,37 @@ public class ScreenRecorderService extends Service {
                             if (copyResult == PixelCopy.SUCCESS){
                                 Utils.bitmapToMat(bitmap, imageMat);
                                 Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
+                                int imageWidth = gray[0].cols();
+                                int leftStripeEnd = 0;
+                                int rightStripeEnd = 0;
+                                for (int x = 0; x < imageWidth / 4; x++){
+                                    Mat col = gray[0].col(x);
+                                    MatOfDouble mean = new MatOfDouble();
+                                    MatOfDouble std = new MatOfDouble();
+
+                                    Core.meanStdDev(col, mean, std);
+                                    System.out.println("Standard Deviation: " + std.toArray()[0]);
+                                    if (std.toArray()[0] < 10){
+                                        leftStripeEnd = x;
+                                        gray[0].colRange(x, x+1).setTo(new Scalar(255));
+                                    }
+                                }
+
+                                for (int x = imageWidth - 1; x > imageWidth - 50; x--){
+                                    Mat col = gray[0].col(x);
+                                    MatOfDouble mean = new MatOfDouble();
+                                    MatOfDouble std = new MatOfDouble();
+
+                                    Core.meanStdDev(col, mean, std);
+                                    System.out.println("Standard Deviation: " + std.toArray()[0]);
+                                    if (std.toArray()[0] == 0){
+                                        rightStripeEnd = x;
+                                        gray[0].colRange(x-1, x).setTo(new Scalar(255));
+                                    }
+                                }
+
                                 if (gray[0].cols() > 150){
-                                    gray[0] = gray[0].submat(0, gray[0].rows(), 40, gray[0].cols() - 40).clone();
+                                    gray[0] = gray[0].submat(0, gray[0].rows(), 0, gray[0].cols() - 2).clone();
                                 }
 
 //                                Utils.bitmapToMat(testBitmap, testImageMat);
