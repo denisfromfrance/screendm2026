@@ -591,7 +591,7 @@ public class ScreenRecorderService extends Service {
 
 //        saveImage(original);
         Mat bw = removeNoise(original);
-        saveImage(bw);
+//        saveImage(bw);
 
         bw = convertToBlackAndWhite(bw);
 //        saveImage(bw);
