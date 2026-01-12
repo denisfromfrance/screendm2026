@@ -616,7 +616,7 @@ public class ScreenRecorderService extends Service {
             Imgproc.dilate(bw, dilatedSubmat, kernel, new Point(90, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
         }
 
-//        saveImage(dilatedSubmat);
+        saveImage(dilatedSubmat);
 
         int subtractingAmountX = 180 / 4;
         int subtractingAmountY = 20 / 4;
@@ -854,7 +854,7 @@ public class ScreenRecorderService extends Service {
             Mat targetArea = canvas.submat(roi);
             resized.copyTo(targetArea);
 
-            //canvas = smoothImage(canvas);
+//            canvas = smoothImage(canvas);
 
             if (Components.isDoCalculation()){
                 Mat result = extractLines(canvas);
@@ -918,7 +918,7 @@ public class ScreenRecorderService extends Service {
             }
 
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
-//            saveImage(canvas);
+            saveImage(canvas);
             //saveImage(rgba);
 
             if (Components.getOrientation() == 0){
@@ -1161,7 +1161,7 @@ public class ScreenRecorderService extends Service {
                                 Utils.bitmapToMat(bitmap, imageMat);
                                 Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
                                 if (gray[0].cols() > 150){
-                                    gray[0] = gray[0].submat(0, gray[0].rows(), 50, gray[0].cols() - 20).clone();
+                                    gray[0] = gray[0].submat(0, gray[0].rows(), 40, gray[0].cols() - 40).clone();
                                 }
 
 //                                Utils.bitmapToMat(testBitmap, testImageMat);
@@ -1172,7 +1172,7 @@ public class ScreenRecorderService extends Service {
 //                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 50, gray1[0].cols() - 50).clone();
 //                                }
 
-                                if (connectedToServer) {
+                                if (!connectedToServer) {
                                     prepareImageAndSend(gray[0], 240, 320);
 //                                    prepareImageAndSend(gray1[0], 240, 320);
                                 }

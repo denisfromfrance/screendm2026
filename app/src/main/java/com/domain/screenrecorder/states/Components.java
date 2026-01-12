@@ -30,7 +30,7 @@ public class Components {
 
     private static boolean doCalculation = false;
 
-    private static int delay = 3;
+    private static int delay = 5;
 
     public static void setApplicationContext(Context context){
         if (applicationContext == null){
