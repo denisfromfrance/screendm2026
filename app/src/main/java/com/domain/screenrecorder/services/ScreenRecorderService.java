@@ -246,8 +246,9 @@ public class ScreenRecorderService extends Service {
                         maxY = contourBoundingBox.y + contourBoundingBox.height;
                     }
                 }
-                canvasArea = new org.opencv.core.Rect(minX + 25, minY, maxX - minX, maxY - minY);
+                canvasArea = new org.opencv.core.Rect(minX, minY, maxX - minX, maxY - minY);
                 src = mat.submat(canvasArea);
+                System.out.println("Extracted content when iarvel application is selected.");
             }
 
             System.out.println("Canvas Area X: " + canvasArea.x);
@@ -1429,20 +1430,20 @@ public class ScreenRecorderService extends Service {
             networkConnectionHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    try {
-                        System.out.println("Trying to connect to the server...");
-                        socket = new Socket();
-                        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-//                        socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
-                        outputStream = socket.getOutputStream();
-                        Components.setConnectionStatus(1);
-                        connectedToServer = true;
-                        System.out.println("Connected to the server");
-                    } catch (IOException exception) {
-                        exception.printStackTrace();
-                        Components.setConnectionStatus(0);
-                        System.out.println("Trying to connect to the server in 1 sec...");
-                        if (startedScreenRecording) {
+                    if (startedScreenRecording) {
+                        try {
+                            System.out.println("Trying to connect to the server...");
+                            socket = new Socket();
+                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+//                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+                            outputStream = socket.getOutputStream();
+                            Components.setConnectionStatus(1);
+                            connectedToServer = true;
+                            System.out.println("Connected to the server");
+                        } catch (IOException exception) {
+                            exception.printStackTrace();
+                            Components.setConnectionStatus(0);
+                            System.out.println("Trying to connect to the server in 1 sec...");
                             networkConnectionHandler.postDelayed(this, 1000);
                         }
                     }
@@ -1540,6 +1541,7 @@ public class ScreenRecorderService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        startedScreenRecording = false;
         if (mediaRecorder != null){
             try {
                 mediaRecorder.stop();
