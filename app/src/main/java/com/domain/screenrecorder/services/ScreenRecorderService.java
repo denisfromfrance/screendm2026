@@ -246,7 +246,7 @@ public class ScreenRecorderService extends Service {
                         maxY = contourBoundingBox.y + contourBoundingBox.height;
                     }
                 }
-                canvasArea = new org.opencv.core.Rect(minX, minY, maxX - minX, maxY - minY);
+                canvasArea = new org.opencv.core.Rect(minX + 25, minY, maxX - minX, maxY - minY);
                 src = mat.submat(canvasArea);
             }
 
@@ -1211,9 +1211,9 @@ public class ScreenRecorderService extends Service {
                                     gray[0] = gray[0].submat(0, gray[0].rows(), 0, gray[0].cols() - 2).clone();
                                 }
 
-//                                Utils.bitmapToMat(testBitmap, testImageMat);
+//                                Utils.bitmapToMstat(testBitmap, testImageMat);
 //                                final Mat[] gray1 = {new Mat()};
-//                                Imgproc.cvtColor(testImageMat, gray1[0], Imgproc.COLOR_RGBA2GRAY);
+//                                Imgproc.cvtColor(teImageMat, gray1[0], Imgproc.COLOR_RGBA2GRAY);
 //
 //                                if (gray1[0].cols() > 150){
 //                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 50, gray1[0].cols() - 50).clone();
