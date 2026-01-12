@@ -246,7 +246,7 @@ public class ScreenRecorderService extends Service {
                         maxY = contourBoundingBox.y + contourBoundingBox.height;
                     }
                 }
-                canvasArea = new org.opencv.core.Rect(minX + 25, minY, maxX - minX, maxY - minY);
+                canvasArea = new org.opencv.core.Rect(minX, minY, maxX - minX, maxY - minY);
                 src = mat.submat(canvasArea);
             }
 
