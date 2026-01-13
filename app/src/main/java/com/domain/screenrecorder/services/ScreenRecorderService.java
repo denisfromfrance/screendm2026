@@ -942,15 +942,6 @@ public class ScreenRecorderService extends Service {
                 detectedNumbers.setTo(new Scalar(0));
                 Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, newPosY + 20), Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(255), 2);
 
-//                detectedNumbers.setTo(new Scalar(0));
-//                for (int i = 0; i < numberList.size(); i++){
-//                    number = String.valueOf(numberList.get(i));
-//                    textSize = Imgproc.getTextSize(number, Imgproc.FONT_HERSHEY_PLAIN, 1.0, 1, null);
-//                    centerX = (int)((canvas.cols() - textSize.width) / 2);
-//                    Imgproc.putText(detectedNumbers, number, new Point(centerX, newPosY + i * 20), Imgproc.FONT_HERSHEY_PLAIN, 1.0, new Scalar(255), 1);
-//                }
-
-//                detectedNumbers.copyTo(canvas.submat(new Rect(0, 0, detectedNumbers.cols(), detectedNumbers.rows())));
                 Core.bitwise_or(detectedNumbers, canvas, canvas);
             }
 
@@ -1044,20 +1035,6 @@ public class ScreenRecorderService extends Service {
                     connectedToServer = false;
                     connectToServer();
 
-//                    try {
-//                        Components.setConnectionStatus(1);
-//                        outputStream.write(header.getBytes(StandardCharsets.UTF_8));
-//                        outputStream.flush();
-//
-//                        for (int i = 0; i < totalChunks; i++){
-//                            int start = i * chunkSize;
-//                            int length = Math.min(chunkSize, bytes.length - start);
-//                            outputStream.write(bytes, start, length);
-//                            outputStream.flush();
-//                        }
-//                    }catch(IOException e){
-//                        e.printStackTrace();
-//                    }
                 }catch(IOException e){
                     e.printStackTrace();
                 }
@@ -1080,66 +1057,6 @@ public class ScreenRecorderService extends Service {
     public ScreenRecorderService() {
 //        textRecognition = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
         imageQueue = new LinkedBlockingDeque<>();
-    }
-
-    private void setupMediaRecorder(){
-        System.out.println("Setting up media recorder...");
-        //mediaProjection = projectionManager.getMediaProjection(resultCode, data);
-
-        try{
-            File dir = getExternalFilesDir(null);
-            String filePath = new File(dir, "/recordedVideo.mp4").getAbsolutePath();
-            System.out.println(filePath);
-            mediaRecorder = new MediaRecorder();
-//            mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-            mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
-            mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-            mediaRecorder.setOutputFile(filePath);
-            mediaRecorder.setVideoSize(WIDTH, HEIGHT);
-            mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-//            mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-            mediaRecorder.setVideoEncodingBitRate(512 * 1000);
-            mediaRecorder.setVideoFrameRate(30);
-            mediaRecorder.prepare();
-        }catch(IOException e){
-            e.printStackTrace();
-        }
-    }
-
-    private Mat yuvToGray(Image image) {
-        Image.Plane yPlane = image.getPlanes()[0];
-        ByteBuffer buffer = yPlane.getBuffer();
-
-        int width = image.getWidth();
-        int height = image.getHeight();
-        int rowStride = yPlane.getRowStride();
-        int pixelStride = yPlane.getPixelStride(); // usually 1
-
-        Mat gray = new Mat(height, width, CvType.CV_8UC1);
-
-        byte[] rowData = new byte[rowStride];
-        int matRow = 0;
-
-        buffer.rewind();
-
-        for (int row = 0; row < height; row++) {
-            buffer.position(row * rowStride);
-            buffer.get(rowData, 0, rowStride);
-
-            if (pixelStride == 1) {
-                gray.put(matRow, 0, rowData, 0, width);
-            } else {
-                // Rare case (some devices)
-                byte[] compact = new byte[width];
-                for (int col = 0; col < width; col++) {
-                    compact[col] = rowData[col * pixelStride];
-                }
-                gray.put(matRow, 0, compact);
-            }
-            matRow++;
-        }
-
-        return gray;
     }
 
     private void createVirtualDisplay() throws IOException {
@@ -1230,9 +1147,9 @@ public class ScreenRecorderService extends Service {
                                     gray[0] = gray[0].submat(0, gray[0].rows(), 0, gray[0].cols() - 2).clone();
                                 }
 
-//                                Utils.bitmapToMstat(testBitmap, testImageMat);
+//                                Utils.bitmapToMat(testBitmap, testImageMat);
 //                                final Mat[] gray1 = {new Mat()};
-//                                Imgproc.cvtColor(teImageMat, gray1[0], Imgproc.COLOR_RGBA2GRAY);
+//                                Imgproc.cvtColor(testImageMat, gray1[0], Imgproc.COLOR_RGBA2GRAY);
 //
 //                                if (gray1[0].cols() > 150){
 //                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 50, gray1[0].cols() - 50).clone();
@@ -1252,77 +1169,6 @@ public class ScreenRecorderService extends Service {
         };
 
         handler.post(captureRunnable);
-
-//        imageReader.setOnImageAvailableListener(reader -> {
-//            image = reader.acquireLatestImage();
-//            if (image == null) return;
-//
-////            long now = SystemClock.elapsedRealtime();
-////            if (now - latestSeconds < 1000){
-////                image.close();
-////                return;
-////            }
-//
-//            if (!isProcessing.compareAndSet(false, true)){
-//                image.close();
-//                return;
-//            }
-//
-////            Mat gray = yuvToGray(image);
-////            saveImage(gray);
-//
-//            plane = image.getPlanes()[0];
-//            byteBuffer = plane.getBuffer();
-////            int pixelStride = plane.getPixelStride();
-//            int rowStride = plane.getRowStride();
-////            int rowPadding = rowStride - pixelStride * WIDTH;
-//
-//            Mat rgbaImage = new Mat(HEIGHT, WIDTH, CvType.CV_8UC4);
-//            byte[] row = new byte[rowStride];
-//
-//            byteBuffer.rewind();
-//
-//            for (int y = 0; y < HEIGHT; y++) {
-//                byteBuffer.position(y * rowStride);
-//                byteBuffer.get(row);
-//                rgbaImage.put(y, 0, row, 0, WIDTH * 4);
-//            }
-//
-//            image.close();
-//
-//            Mat gray = new Mat();
-//            Imgproc.cvtColor(rgbaImage, gray, Imgproc.COLOR_RGBA2GRAY);
-//            if (gray.cols() > 150){
-//                gray = gray.submat(0, gray.rows(), 50, gray.cols() - 50).clone();
-//            }
-//
-//            consumer.captureFrame(gray);
-//
-//            rgbaImage.release();
-////            saveImage(gray);
-//
-//
-////            if (threadStarted){
-//////                latestSeconds = now;
-////
-////                Mat finalGray = gray;
-////                executorService.execute(() -> {
-////                    try {
-//////                        Utils.bitmapToMat(testBitmap, testImageMat);
-//////                        Imgproc.cvtColor(testImageMat, testImageMat, Imgproc.COLOR_BGR2GRAY);
-//////                        prepareImageAndSend(testImageMat, 240, 320);
-////                        prepareImageAndSend(finalGray, 240, 320);
-////                    }finally {
-//////                        cropped.recycle();
-////                        isProcessing.set(false);
-////                    }
-////                });
-////            }else{
-////                bitmap.recycle();
-////                isProcessing.set(false);
-////            }
-//
-//        }, handler);
 
         captureVirtualDisplay = mediaProjection.createVirtualDisplay(
                 "Capture VDisplay",
@@ -1372,41 +1218,6 @@ public class ScreenRecorderService extends Service {
         }
     }
 
-    private void captureSurfacePeriodically(Surface surface){
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
-
-        captureRunnable = new Runnable() {
-            @Override
-            public void run() {
-                final Bitmap[] bitmap = {Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888)};
-
-                PixelCopy.request(surface, bitmap[0], copyResult -> {
-                    if (copyResult == PixelCopy.SUCCESS){
-                        System.out.println("Bitmap loaded successfully!");
-                        try{
-                            Bitmap originalBitmap = bitmap[0];
-                            if (threadStarted) {
-                                System.out.println("Sending image...");
-
-//                                executorService.submit(() -> {
-//                                    prepareImageAndSend(testBitmap, 240, 320);
-//                                    prepareImageAndSend(originalBitmap, 240, 320);
-//                                });
-                            }
-                        }catch (Exception exception){
-                            exception.printStackTrace();
-                        }
-                    }else {
-                        //setupMediaRecorder();
-                        System.out.println("Pixel copy failed!");
-                    }
-                }, handler);
-                handler.postDelayed(this, 2500);
-            }
-        };
-        handler.post(captureRunnable);
-    }
-
     private void createNotification(){
         String CHANNEL_ID = "Screen Record Channel";
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
@@ -1452,8 +1263,8 @@ public class ScreenRecorderService extends Service {
                         try {
                             System.out.println("Trying to connect to the server...");
                             socket = new Socket();
-                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-//                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+//                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                             outputStream = socket.getOutputStream();
                             Components.setConnectionStatus(1);
                             connectedToServer = true;
@@ -1467,22 +1278,6 @@ public class ScreenRecorderService extends Service {
                     }
                 }
             });
-
-//            Thread networkThread = new Thread(new Runnable() {
-//                @Override
-//                public void run() {
-//                    try {
-//                        socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-////                    socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
-//                        outputStream = socket.getOutputStream();
-//                        Components.setConnectionStatus(1);
-//                        System.out.println("Connected to the server");
-//                    } catch (IOException exception) {
-//                        exception.printStackTrace();
-//                    }
-//                }
-//            });
-//            networkThread.start();
         }
     }
 
@@ -1523,7 +1318,7 @@ public class ScreenRecorderService extends Service {
         detectedNumbers = Mat.zeros(320, 240, CvType.CV_8UC1);
 
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.huion23);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.huion21);
 //        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.correctnumberrepresentation);
 //        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.iarvel3);
         testBitmap = BitmapFactory.decodeStream(is);
