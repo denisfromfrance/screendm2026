@@ -824,9 +824,10 @@ public class ScreenRecorderService extends Service {
                         }
 
 //                        Imgproc.rectangle(cropped, new org.opencv.core.Rect(newPosX, imageData[1], imageData[2], imageData[3]), new Scalar(255), 2);
-
-                        tempBWSubmat = cropped.submat(new org.opencv.core.Rect(newPosX, imageData[1], imageData[2], imageData[3]));
-                        croppedMat.copyTo(tempBWSubmat);
+                        if (newPosX + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows()){
+                            tempBWSubmat = cropped.submat(new org.opencv.core.Rect(newPosX, imageData[1], imageData[2], imageData[3]));
+                            croppedMat.copyTo(tempBWSubmat);
+                        }
                     }
                 }else {
                     if ((cropRoi.x + cropRoi.width <= bw.cols() && imageData[1] + cropRoi.height <= bw.rows()) &&
@@ -841,9 +842,10 @@ public class ScreenRecorderService extends Service {
                         if (newPosX < 0) {
                             newPosX = 0;
                         }
-
-                        tempBWSubmat = cropped.submat(new org.opencv.core.Rect(newPosX, imageData[1], imageData[2], imageData[3]));
-                        croppedMat.copyTo(tempBWSubmat);
+                        if (newPosX + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows()){
+                            tempBWSubmat = cropped.submat(new org.opencv.core.Rect(newPosX, imageData[1], imageData[2], imageData[3]));
+                            croppedMat.copyTo(tempBWSubmat);
+                        }
                     }
                 }
             }
