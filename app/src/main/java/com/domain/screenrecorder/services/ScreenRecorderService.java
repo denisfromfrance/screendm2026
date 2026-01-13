@@ -1238,7 +1238,7 @@ public class ScreenRecorderService extends Service {
 //                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 50, gray1[0].cols() - 50).clone();
 //                                }
 
-                                if (!connectedToServer) {
+                                if (connectedToServer) {
                                     prepareImageAndSend(gray[0], 240, 320);
 //                                    prepareImageAndSend(gray1[0], 240, 320);
                                 }
