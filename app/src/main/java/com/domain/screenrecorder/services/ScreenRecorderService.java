@@ -160,6 +160,11 @@ public class ScreenRecorderService extends Service {
     private int latestDisplayedNumber = 0;
     private String currentDisplayingNumber = "";
 
+    private boolean isBlack(Mat input){
+        double meanVal = Core.mean(input).val[0];
+        return meanVal < 127;
+    }
+
 
     private Mat convertToBlackAndWhite(Mat mat){
         Mat src = mat.clone();
@@ -192,11 +197,15 @@ public class ScreenRecorderService extends Service {
 
 //        Imgproc.morphologyEx(src, src, Imgproc.MORPH_CLOSE, originalImageCleaningKernel);
 //        saveImage(src);
-//
+
 //        Imgproc.morphologyEx(src, src, Imgproc.MORPH_OPEN, originalImageCleaningKernel);
 //        saveImage(src);
 
         dilatedOriginalMat.setTo(new Scalar(0));
+
+        if (!isBlack(src)){
+            Core.bitwise_not(src, src);
+        }
 
         Imgproc.dilate(src, dilatedOriginalMat, writingAreaFilterKernel);
 //        saveImage(src);
@@ -208,6 +217,7 @@ public class ScreenRecorderService extends Service {
 
         if (contours.size() > 0) {
             System.out.println("####### Found more than 1 contour");
+
             contours.sort(new Comparator<MatOfPoint>() {
                 @Override
                 public int compare(MatOfPoint o1, MatOfPoint o2) {
@@ -216,6 +226,12 @@ public class ScreenRecorderService extends Service {
                     return Integer.compare(rect1.y, rect2.y);
                 }
             });
+
+//            if (contours.size() > 1) {
+//                if (Components.getNoteApplication() == Constants.HUIONNOTE) {
+//                    contours.remove(0);
+//                }
+//            }
 
             org.opencv.core.Rect canvasArea = Imgproc.boundingRect(contours.get(0));
             if (contours.size() > 1 && Components.getNoteApplication() == Constants.HUIONNOTE){
@@ -649,11 +665,11 @@ public class ScreenRecorderService extends Service {
             }
         });
 
-        if (Components.getNoteApplication() == Constants.HUIONNOTE){
-            if (contours.size() > 1) {
-                contours.remove(0);
-            }
-        }
+//        if (Components.getNoteApplication() == Constants.HUIONNOTE){
+//            if (contours.size() > 1) {
+//                contours.remove(0);
+//            }
+//        }
 
         Map<MatOfPoint, Integer[]> submats = new LinkedHashMap<>();
 
@@ -1222,7 +1238,7 @@ public class ScreenRecorderService extends Service {
 //                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 50, gray1[0].cols() - 50).clone();
 //                                }
 
-                                if (connectedToServer) {
+                                if (!connectedToServer) {
                                     prepareImageAndSend(gray[0], 240, 320);
 //                                    prepareImageAndSend(gray1[0], 240, 320);
                                 }
@@ -1495,7 +1511,7 @@ public class ScreenRecorderService extends Service {
         }
 
         originalImageCleaningKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(10, 10));
-        writingAreaFilterKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(50, 70));
+        writingAreaFilterKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 120));
         charExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(4, 2));
         lineExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(80, 1));
 
