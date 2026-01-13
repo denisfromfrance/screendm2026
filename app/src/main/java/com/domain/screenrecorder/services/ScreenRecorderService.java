@@ -624,7 +624,7 @@ public class ScreenRecorderService extends Service {
 
         Mat bw = convertToBlackAndWhite(original);
 
-        saveImage(bw);
+//        saveImage(bw);
 
 //        bw = bw.submat(50, bw.rows() - 100, 50, bw.cols() - 100).clone();
 
@@ -656,7 +656,7 @@ public class ScreenRecorderService extends Service {
             Imgproc.dilate(bw, dilatedSubmat, kernel, new Point(90, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
         }
 
-        saveImage(dilatedSubmat);
+//        saveImage(dilatedSubmat);
 
         int subtractingAmountX = 180 / 4;
         int subtractingAmountY = 20 / 4;
@@ -957,7 +957,7 @@ public class ScreenRecorderService extends Service {
             }
 
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
-            saveImage(canvas);
+//            saveImage(canvas);
             //saveImage(rgba);
 
             if (Components.getOrientation() == 0){
@@ -1246,8 +1246,8 @@ public class ScreenRecorderService extends Service {
                         try {
                             System.out.println("Trying to connect to the server...");
                             socket = new Socket();
-//                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+//                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                             outputStream = socket.getOutputStream();
                             Components.setConnectionStatus(1);
                             connectedToServer = true;
