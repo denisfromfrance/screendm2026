@@ -178,7 +178,8 @@ public class ScreenRecorderService extends Service {
         }
 
         Imgproc.threshold(src, src, 250, 255, Imgproc.THRESH_BINARY);
-//        saveImage(src);
+        Imgproc.rectangle(src, new Rect(0, 0, src.cols(), 100), new Scalar(255, 255, 255));
+        saveImage(src);
 
 //        if (Components.getNoteApplication() == Constants.IARVEL) {
 //            org.opencv.core.Rect center = new org.opencv.core.Rect(
@@ -1263,8 +1264,8 @@ public class ScreenRecorderService extends Service {
                         try {
                             System.out.println("Trying to connect to the server...");
                             socket = new Socket();
-//                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+//                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                             outputStream = socket.getOutputStream();
                             Components.setConnectionStatus(1);
                             connectedToServer = true;
