@@ -181,32 +181,64 @@ public class ScreenRecorderService extends Service {
 //        Imgproc.rectangle(src, new Rect(0, 0, src.cols(), 100), new Scalar(255, 255, 255));
 //        saveImage(src);
 
-//        if (Components.getNoteApplication() == Constants.IARVEL) {
-//            org.opencv.core.Rect center = new org.opencv.core.Rect(
-//                    0,
-//                    0,
-//                    src.cols(),
-//                    src.rows());
-//
-//            Mat centerMat = new Mat(src, center);
-//
-//            double meanVal = Core.mean(centerMat).val[0];
-//            if (meanVal > 127) {
-//                Core.bitwise_not(src, src);
-//            }
-//        }
+        if (Components.getNoteApplication() == Constants.IARVEL) {
+            int imageWidth = src.cols();
+            int leftStripeEnd = 0;
+            int rightStripeEnd = 0;
 
-//        Imgproc.morphologyEx(src, src, Imgproc.MORPH_CLOSE, originalImageCleaningKernel);
-//        saveImage(src);
+            System.out.println("Removing left blank area...");
+            for (int x = 0; x < 200; x++){
+                Mat col = src.col(x);
+                MatOfDouble mean = new MatOfDouble();
+                MatOfDouble std = new MatOfDouble();
+                Core.meanStdDev(col, mean, std);
+                if (std.toArray()[0] == 0){
+                    leftStripeEnd = x;
+                }
+            }
 
-//        Imgproc.morphologyEx(src, src, Imgproc.MORPH_OPEN, originalImageCleaningKernel);
-//        saveImage(src);
+            src.colRange(0, leftStripeEnd + 3).setTo(new Scalar(255, 255, 255));
+
+
+            int x1 = 0;
+            int x2 = 0;
+            for (int x = imageWidth - 1; x > imageWidth - 80; x--){
+                Mat col = src.col(x);
+                MatOfDouble mean = new MatOfDouble();
+                MatOfDouble std = new MatOfDouble();
+
+                Core.meanStdDev(col, mean, std);
+                System.out.println("Standard Deviation: " + std.toArray()[0]);
+                if (std.toArray()[0] == 0){
+                    rightStripeEnd = x;
+                    x1 = x;
+                }
+            }
+
+            x2 = imageWidth - 1;
+
+            if (x1 < x2 && x1 > imageWidth - 150){
+                src.colRange(x1, x2).setTo(new Scalar(255));
+            }
+
+
+            org.opencv.core.Rect center = new org.opencv.core.Rect(
+                    0,
+                    0,
+                    src.cols(),
+                    src.rows());
+
+            Mat centerMat = new Mat(src, center);
+
+            double meanVal = Core.mean(centerMat).val[0];
+            if (meanVal > 127) {
+                Core.bitwise_not(src, src);
+            }
+            src = src.submat(0, src.rows(), 2, src.cols() -2).clone();
+//            saveImage(src);
+        }
 
         dilatedOriginalMat.setTo(new Scalar(0));
-
-//        if (!isBlack(src)){
-//            Core.bitwise_not(src, src);
-//        }
 
         Imgproc.dilate(src, dilatedOriginalMat, writingAreaFilterKernel);
 //        saveImage(src);
@@ -266,12 +298,15 @@ public class ScreenRecorderService extends Service {
                 }
                 canvasArea = new org.opencv.core.Rect(minX, minY, maxX - minX, maxY - minY);
                 src = mat.submat(canvasArea);
+//                saveImage(src);
                 System.out.println("Extracted content when iarvel application is selected.");
             }
 
             int imageWidth = src.cols();
             int leftStripeEnd = 0;
             int rightStripeEnd = 0;
+
+//            saveImage(src);
 
             System.out.println("Removing left blank area...");
             for (int x = 0; x < imageWidth / 4; x++){
@@ -287,7 +322,10 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            src.colRange(0, leftStripeEnd + 3).setTo(new Scalar(255, 255, 255));
+            if (leftStripeEnd < 100) {
+                src.colRange(0, leftStripeEnd + 3).setTo(new Scalar(255, 255, 255));
+            }
+//            saveImage(src);
 
             System.out.println("Removing right blank area...");
             int x1 = 0;
@@ -307,9 +345,11 @@ public class ScreenRecorderService extends Service {
 
             x2 = imageWidth - 1;
 
-            if (x1 < x2){
+            if (x1 < x2 && x1 > imageWidth - 150){
                 src.colRange(x1, x2).setTo(new Scalar(255));
             }
+
+//            saveImage(src);
 
             System.out.println("Canvas Area X: " + canvasArea.x);
             System.out.println("Canvas Area Y: " + canvasArea.y);
@@ -326,16 +366,20 @@ public class ScreenRecorderService extends Service {
             System.out.println("Updated canvas Area height: " + canvasArea.height);
             System.out.println("Clearing contours...");
         }
-        Imgproc.threshold(src, src, 150, 255, Imgproc.THRESH_BINARY);
 
+//        saveImage(src);
+        Imgproc.threshold(src, src, 150, 255, Imgproc.THRESH_BINARY);
+//        saveImage(src);
         src = removeNoise(src);
-        src = src.submat(0, src.rows(), 5, src.cols() - 5).clone();
+        if (Components.getNoteApplication() == Constants.HUIONNOTE) {
+            src = src.submat(0, src.rows(), 5, src.cols() - 5).clone();
+        }
 
         double meanVal = Core.mean(src).val[0];
         if (meanVal > 127){
             Core.bitwise_not(src, src);
         }
-
+//        saveImage(src);
         return src;
     }
 
@@ -741,9 +785,6 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            if (imageWidth > subtractingAmountX * 2){
-                imageWidth -= subtractingAmountX * 2;
-            }
 
             if (imageHeight > subtractingAmountY){
                 imageHeight -= subtractingAmountY;
@@ -752,6 +793,9 @@ public class ScreenRecorderService extends Service {
             if (Components.getNoteApplication() == Constants.IARVEL) {
                 submats.put(c, new Integer[]{(imagePosX) + subtractingAmountX, (imagePosY - yStart), imageWidth, imageHeight});
             }else {
+                if (imageWidth > subtractingAmountX * 2) {
+                    imageWidth -= subtractingAmountX * 2;
+                }
                 submats.put(c, new Integer[]{(imagePosX) + subtractingAmountX, (imagePosY - yStart), imageWidth, imageHeight});
             }
             System.out.println("Image PosX: " + imagePosX);
@@ -818,7 +862,7 @@ public class ScreenRecorderService extends Service {
                 org.opencv.core.Rect cropRoi = Imgproc.boundingRect(content.getKey());
                 Integer[] imageData = content.getValue();
 
-                cropRoi.x += (subtractingAmountX);
+
 //                cropRoi.x += 15;
                 cropRoi.y += (subtractingAmountY);
                 cropRoi.width = imageData[2];
@@ -841,6 +885,9 @@ public class ScreenRecorderService extends Service {
                             (imageData[2] <= cropped.cols() && imageData[3] <= cropped.rows()) &&
                             (imageData[3] >= 10 && imageData[2] >= 10)
                     ) {
+
+                        cropRoi.x += (subtractingAmountX);
+
                         croppedMat = new Mat(bw, cropRoi);
 
                         System.out.println("Image Data: " + Arrays.toString(imageData));
@@ -957,6 +1004,7 @@ public class ScreenRecorderService extends Service {
             }
 
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
+
 //            saveImage(canvas);
             //saveImage(rgba);
 
@@ -1133,9 +1181,9 @@ public class ScreenRecorderService extends Service {
 //                                Utils.bitmapToMat(testBitmap, testImageMat);
 //                                final Mat[] gray1 = {new Mat()};
 //                                Imgproc.cvtColor(testImageMat, gray1[0], Imgproc.COLOR_RGBA2GRAY);
-//
+
 //                                if (gray1[0].cols() > 150){
-//                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 50, gray1[0].cols() - 50).clone();
+//                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 5, gray1[0].cols() - 5).clone();
 //                                }
 
                                 if (connectedToServer) {
@@ -1301,7 +1349,7 @@ public class ScreenRecorderService extends Service {
         detectedNumbers = Mat.zeros(320, 240, CvType.CV_8UC1);
 
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.huion21);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.fourthtestimage);
 //        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.correctnumberrepresentation);
 //        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.iarvel3);
         testBitmap = BitmapFactory.decodeStream(is);
