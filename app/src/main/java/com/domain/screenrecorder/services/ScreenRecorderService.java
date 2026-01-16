@@ -826,7 +826,7 @@ public class ScreenRecorderService extends Service {
 
         if (Components.getOrientation() == 0){
             if (outputBitmap.getWidth() == targetWidth && outputBitmap.getHeight() == targetHeight){
-                outputBitmap = Bitmap.createBitmap(320, 240, Bitmap.Config.ARGB_8888);
+                outputBitmap = Bitmap.createBitmap(448, 368, Bitmap.Config.ARGB_8888);
             }
 
             if (canvas.cols() == targetWidth && canvas.rows() == targetHeight) {
@@ -839,7 +839,7 @@ public class ScreenRecorderService extends Service {
 
         }else{
             if (outputBitmap.getWidth() == targetHeight && outputBitmap.getHeight() == targetWidth){
-                outputBitmap = Bitmap.createBitmap(240, 320, Bitmap.Config.ARGB_8888);
+                outputBitmap = Bitmap.createBitmap(368, 448, Bitmap.Config.ARGB_8888);
             }
 
             if (canvas.cols() == targetHeight && canvas.rows() == targetWidth) {
@@ -949,7 +949,7 @@ public class ScreenRecorderService extends Service {
             System.out.println("Transforming image...");
             TransformedImage transformedImage;
             if (Components.getOrientation() == 0){
-                transformedImage = transformImageForDisplay(cropped, 320, 240);
+                transformedImage = transformImageForDisplay(cropped, 448, 368);
             }else{
                 transformedImage = transformImageForDisplay(cropped, targetWidth, targetHeight);
             }
@@ -1208,7 +1208,7 @@ public class ScreenRecorderService extends Service {
 
                                 if (!connectedToServer) {
 //                                    prepareImageAndSend(gray[0], 240, 320);
-                                    prepareImageAndSend(gray1[0], 240, 320);
+                                    prepareImageAndSend(gray1[0], 368, 448);
                                 }
                             }
                             latestImage.close();
@@ -1367,12 +1367,12 @@ public class ScreenRecorderService extends Service {
         charExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(4, 2));
         lineExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(80, 1));
 
-        canvas = Mat.zeros(320, 240, CvType.CV_8UC1);
+        canvas = Mat.zeros(448, 368, CvType.CV_8UC1);
         rgba = Mat.zeros(canvas.rows(), canvas.cols(), CvType.CV_8UC4);
         outputBitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
-        digitMat = Mat.zeros(32, 240, CvType.CV_8UC1);
-        calculationResult = Mat.zeros(32, 240, CvType.CV_8UC1);
-        detectedNumbers = Mat.zeros(320, 240, CvType.CV_8UC1);
+        digitMat = Mat.zeros(32, 368, CvType.CV_8UC1);
+        calculationResult = Mat.zeros(32, 368, CvType.CV_8UC1);
+        detectedNumbers = Mat.zeros(448, 368, CvType.CV_8UC1);
 
 
         InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuantest3);
