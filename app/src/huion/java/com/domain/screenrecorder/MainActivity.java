@@ -109,6 +109,7 @@ public class MainActivity extends AppCompatActivity {
         Components.setConnectionStatusIcon(connectionStatusIcon);
         Components.setThread(imagePullThread);
         Components.setOrientation(1);
+        Components.setNoteApplication(Constants.HUIONNOTE);
 
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
@@ -146,61 +147,58 @@ public class MainActivity extends AppCompatActivity {
             stopButton.setEnabled(false);
         });
 
-        ImageButton huionNoteBtn = findViewById(R.id.huionnotebtn);
-        ImageButton iarvelBtn = findViewById(R.id.iarvelbtn);
+//        ImageButton huionNoteBtn = findViewById(R.id.huionnotebtn);
+//        ImageButton iarvelBtn = findViewById(R.id.iarvelbtn);
 
-        Components.setNoteApplication(Constants.HUIONNOTE);
-
-        huionNoteBtn.setBackgroundColor(getResources().getColor(R.color.light_green));
-        iarvelBtn.setBackgroundColor(getResources().getColor(R.color.dark_gray));
+//        huionNoteBtn.setBackgroundColor(getResources().getColor(R.color.light_green));
+//        iarvelBtn.setBackgroundColor(getResources().getColor(R.color.dark_gray));
 
 
-        huionNoteBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-//                Drawable icon = ContextCompat.getDrawable(getApplicationContext(), R.drawable.ic_portrait);
-//                icon.setTint(ContextCompat.getColor(getApplicationContext(), R.color.white));
-                Components.setNoteApplication(Constants.HUIONNOTE);
-                huionNoteBtn.setBackgroundColor(getResources().getColor(R.color.light_green));
-                iarvelBtn.setBackgroundColor(getResources().getColor(R.color.dark_gray));
-                //Components.setOrientation(1); // portrait orientation
-            }
-        });
+//        huionNoteBtn.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View view) {
+////                Drawable icon = ContextCompat.getDrawable(getApplicationContext(), R.drawable.ic_portrait);
+////                icon.setTint(ContextCompat.getColor(getApplicationContext(), R.color.white));
+//                Components.setNoteApplication(Constants.HUIONNOTE);
+//                huionNoteBtn.setBackgroundColor(getResources().getColor(R.color.light_green));
+//                iarvelBtn.setBackgroundColor(getResources().getColor(R.color.dark_gray));
+//                //Components.setOrientation(1); // portrait orientation
+//            }
+//        });
 
-        iarvelBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-//                Drawable icon = ContextCompat.getDrawable(getApplicationContext(), R.drawable.ic_landscape);
-//                icon.setTint(ContextCompat.getColor(getApplicationContext(), R.color.white));
-                Components.setNoteApplication(Constants.IARVEL);
-                iarvelBtn.setBackgroundColor(getResources().getColor(R.color.light_green));
-                huionNoteBtn.setBackgroundColor(getResources().getColor(R.color.dark_gray));
-                //Components.setOrientation(0); // landscape orientation
-//                System.out.println("Button icon changed!");
-            }
-        });
+//        iarvelBtn.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View view) {
+////                Drawable icon = ContextCompat.getDrawable(getApplicationContext(), R.drawable.ic_landscape);
+////                icon.setTint(ContextCompat.getColor(getApplicationContext(), R.color.white));
+//                Components.setNoteApplication(Constants.IARVEL);
+//                iarvelBtn.setBackgroundColor(getResources().getColor(R.color.light_green));
+//                huionNoteBtn.setBackgroundColor(getResources().getColor(R.color.dark_gray));
+//                //Components.setOrientation(0); // landscape orientation
+////                System.out.println("Button icon changed!");
+//            }
+//        });
 
-        Components.setOrientation(1);
         //Drawable largeIcon = resize(R.mipmap.app_logo_round, 3);
 //        toolbar.setNavigationIcon(R.mipmap.app_logo_round);
 
-        spinner = findViewById(R.id.spinner);
-        Integer[] seconds = new Integer[]{3, 4, 5};
-        ArrayAdapter<Integer> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, seconds);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
-
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                Components.setDelay(seconds[position]);
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-
-            }
-        });
+//        spinner = findViewById(R.id.spinner);
+//        Integer[] seconds = new Integer[]{3, 4, 5};
+//        ArrayAdapter<Integer> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, seconds);
+//        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+//        spinner.setAdapter(adapter);
+//
+//        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+//            @Override
+//            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+//                Components.setDelay(seconds[position]);
+//            }
+//
+//            @Override
+//            public void onNothingSelected(AdapterView<?> parent) {
+//
+//            }
+//        });
     }
 
     @Override

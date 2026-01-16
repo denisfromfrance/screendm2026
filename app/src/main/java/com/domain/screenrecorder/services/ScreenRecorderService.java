@@ -199,7 +199,6 @@ public class ScreenRecorderService extends Service {
 
             src.colRange(0, leftStripeEnd + 3).setTo(new Scalar(255, 255, 255));
 
-
             int x1 = 0;
             int x2 = 0;
             for (int x = imageWidth - 1; x > imageWidth - 80; x--){
@@ -272,6 +271,24 @@ public class ScreenRecorderService extends Service {
                 src = mat.submat(canvasArea);
             }
             System.out.println("Extracted content from huion");
+
+            if (Components.getNoteApplication() == Constants.YUAN){
+                int contourArea = 0;
+                Rect boundingBox = null;
+                for (MatOfPoint contour : contours){
+                    Rect rect = Imgproc.boundingRect(contour);
+                    int area = rect.width * rect.height;
+                    if (area > contourArea){
+                        contourArea = area;
+                        boundingBox = rect;
+                    }
+                }
+
+                if (boundingBox != null){
+                    src = mat.submat(boundingBox);
+//                    saveImage(src);
+                }
+            }
 
             if (Components.getNoteApplication() == Constants.IARVEL){
                 int minX = Integer.MAX_VALUE;
@@ -371,8 +388,11 @@ public class ScreenRecorderService extends Service {
         Imgproc.threshold(src, src, 150, 255, Imgproc.THRESH_BINARY);
 //        saveImage(src);
         src = removeNoise(src);
+
         if (Components.getNoteApplication() == Constants.HUIONNOTE) {
             src = src.submat(0, src.rows(), 5, src.cols() - 5).clone();
+        }else if(Components.getNoteApplication() == Constants.YUAN){
+            src = src.submat(160, src.rows() - 220, 5, src.cols() - 5);
         }
 
         double meanVal = Core.mean(src).val[0];
@@ -700,7 +720,7 @@ public class ScreenRecorderService extends Service {
             Imgproc.dilate(bw, dilatedSubmat, kernel, new Point(90, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
         }
 
-//        saveImage(dilatedSubmat);
+        saveImage(dilatedSubmat);
 
         int subtractingAmountX = 180 / 4;
         int subtractingAmountY = 20 / 4;
@@ -925,7 +945,7 @@ public class ScreenRecorderService extends Service {
             }
 
 //            saveImage(bw);
-//            saveImage(cropped);
+            saveImage(cropped);
             System.out.println("Transforming image...");
             TransformedImage transformedImage;
             if (Components.getOrientation() == 0){
@@ -1171,24 +1191,24 @@ public class ScreenRecorderService extends Service {
                         @Override
                         public void onPixelCopyFinished(int copyResult) {
                             if (copyResult == PixelCopy.SUCCESS){
-                                Utils.bitmapToMat(bitmap, imageMat);
-                                Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
-
-                                if (gray[0].cols() > 150){
-                                    gray[0] = gray[0].submat(0, gray[0].rows(), 2, gray[0].cols() - 2).clone();
-                                }
-
-//                                Utils.bitmapToMat(testBitmap, testImageMat);
-//                                final Mat[] gray1 = {new Mat()};
-//                                Imgproc.cvtColor(testImageMat, gray1[0], Imgproc.COLOR_RGBA2GRAY);
-
-//                                if (gray1[0].cols() > 150){
-//                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 5, gray1[0].cols() - 5).clone();
+//                                Utils.bitmapToMat(bitmap, imageMat);
+//                                Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
+//
+//                                if (gray[0].cols() > 150){
+//                                    gray[0] = gray[0].submat(0, gray[0].rows(), 2, gray[0].cols() - 2).clone();
 //                                }
 
-                                if (connectedToServer) {
-                                    prepareImageAndSend(gray[0], 240, 320);
-//                                    prepareImageAndSend(gray1[0], 240, 320);
+                                Utils.bitmapToMat(testBitmap, testImageMat);
+                                final Mat[] gray1 = {new Mat()};
+                                Imgproc.cvtColor(testImageMat, gray1[0], Imgproc.COLOR_RGBA2GRAY);
+
+                                if (gray1[0].cols() > 150){
+                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 5, gray1[0].cols() - 5).clone();
+                                }
+
+                                if (!connectedToServer) {
+//                                    prepareImageAndSend(gray[0], 240, 320);
+                                    prepareImageAndSend(gray1[0], 240, 320);
                                 }
                             }
                             latestImage.close();
@@ -1337,7 +1357,13 @@ public class ScreenRecorderService extends Service {
         }
 
         originalImageCleaningKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(10, 10));
-        writingAreaFilterKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 70));
+
+        if (Components.getNoteApplication() == Constants.YUAN){
+            writingAreaFilterKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(290, 40));
+        }else {
+            writingAreaFilterKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 70));
+        }
+
         charExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(4, 2));
         lineExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(80, 1));
 
@@ -1349,7 +1375,7 @@ public class ScreenRecorderService extends Service {
         detectedNumbers = Mat.zeros(320, 240, CvType.CV_8UC1);
 
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.fourthtestimage);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuantest3);
 //        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.correctnumberrepresentation);
 //        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.iarvel3);
         testBitmap = BitmapFactory.decodeStream(is);

@@ -1,10 +1,36 @@
 plugins {
     id 'com.android.application'
 }
-
 android {
     namespace 'com.domain.screenrecorder'
     compileSdk 34
+
+    flavorDimensions "feature"
+    productFlavors {
+        huion{
+            dimension "feature"
+            applicationIdSuffix ".huion"
+            versionNameSuffix "-huion"
+        }
+
+        iarvel{
+            dimension "feature"
+            applicationIdSuffix ".iarvel"
+            versionNameSuffix "-iarvel"
+        }
+
+        combined{
+            dimension "feature"
+            applicationIdSuffix ".composite"
+            versionNameSuffix "-composite"
+        }
+
+        yuan{
+            dimension "feature"
+            applicationIdSuffix ".yuan"
+            versionNameSuffix "-yuan"
+        }
+    }
 
     defaultConfig {
         applicationId "com.domain.screenrecorder"
