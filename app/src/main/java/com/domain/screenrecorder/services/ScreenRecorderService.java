@@ -392,7 +392,9 @@ public class ScreenRecorderService extends Service {
         if (Components.getNoteApplication() == Constants.HUIONNOTE) {
             src = src.submat(0, src.rows(), 5, src.cols() - 5).clone();
         }else if(Components.getNoteApplication() == Constants.YUAN){
-            src = src.submat(160, src.rows() - 220, 5, src.cols() - 5);
+            if (src.rows() > 380 && src.cols() > 10) {
+                src = src.submat(130, src.rows() - 220, 5, src.cols() - 5);
+            }
         }
 
         double meanVal = Core.mean(src).val[0];
@@ -720,7 +722,7 @@ public class ScreenRecorderService extends Service {
             Imgproc.dilate(bw, dilatedSubmat, kernel, new Point(90, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
         }
 
-        saveImage(dilatedSubmat);
+//        saveImage(dilatedSubmat);
 
         int subtractingAmountX = 180 / 4;
         int subtractingAmountY = 20 / 4;
@@ -945,7 +947,7 @@ public class ScreenRecorderService extends Service {
             }
 
 //            saveImage(bw);
-            saveImage(cropped);
+//            saveImage(cropped);
             System.out.println("Transforming image...");
             TransformedImage transformedImage;
             if (Components.getOrientation() == 0){
@@ -1025,7 +1027,7 @@ public class ScreenRecorderService extends Service {
 
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
 
-            saveImage(canvas);
+//            saveImage(canvas);
             //saveImage(rgba);
 
             if (Components.getOrientation() == 0){
@@ -1314,8 +1316,8 @@ public class ScreenRecorderService extends Service {
                         try {
                             System.out.println("Trying to connect to the server...");
                             socket = new Socket();
-//                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+//                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                             outputStream = socket.getOutputStream();
                             Components.setConnectionStatus(1);
                             connectedToServer = true;

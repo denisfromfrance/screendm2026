@@ -11,24 +11,44 @@ android {
             dimension "feature"
             applicationIdSuffix ".huion"
             versionNameSuffix "-huion"
+            sourceSets{
+                main{
+                    res.srcDirs = ['src/huion/res', 'src/main/res']
+                }
+            }
         }
 
         iarvel{
             dimension "feature"
             applicationIdSuffix ".iarvel"
             versionNameSuffix "-iarvel"
+            sourceSets{
+                main{
+                    res.srcDirs = ['src/iarvel/res', 'src/main/res']
+                }
+            }
         }
 
         combined{
             dimension "feature"
             applicationIdSuffix ".composite"
             versionNameSuffix "-composite"
+            sourceSets{
+                main{
+                    res.srcDirs = ['src/composite/res', 'src/main/res']
+                }
+            }
         }
 
         yuan{
             dimension "feature"
             applicationIdSuffix ".yuan"
             versionNameSuffix "-yuan"
+            sourceSets{
+                main{
+                    res.srcDirs = ['src/yuan/res', 'src/main/res']
+                }
+            }
         }
     }
 

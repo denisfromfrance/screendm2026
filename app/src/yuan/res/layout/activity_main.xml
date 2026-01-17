@@ -20,7 +20,7 @@
 
         <ImageView
             android:layout_width="wrap_content"
-            android:layout_height="120dp"
+            android:layout_height="150dp"
             android:scaleX="2.5"
             android:scaleY="2.5"
             android:src="@mipmap/app_logo" />
@@ -79,8 +79,6 @@
         android:id="@+id/detectNumbers"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="60dp"
-        android:layout_marginBottom="40dp"
         android:text="Detect Numbers"
         app:layout_constraintBottom_toTopOf="@+id/linearLayout3"
         app:layout_constraintEnd_toEndOf="parent"

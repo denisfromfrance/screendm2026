@@ -20,7 +20,7 @@
 
         <ImageView
             android:layout_width="wrap_content"
-            android:layout_height="120dp"
+            android:layout_height="160dp"
             android:scaleX="2.5"
             android:scaleY="2.5"
             android:src="@mipmap/app_logo" />
