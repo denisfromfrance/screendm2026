@@ -259,12 +259,6 @@ public class ScreenRecorderService extends Service {
                 }
             });
 
-//            if (contours.size() > 1) {
-//                if (Components.getNoteApplication() == Constants.HUIONNOTE) {
-//                    contours.remove(0);
-//                }
-//            }
-
             org.opencv.core.Rect canvasArea = Imgproc.boundingRect(contours.get(0));
             if (contours.size() > 1 && Components.getNoteApplication() == Constants.HUIONNOTE){
                 canvasArea = Imgproc.boundingRect(contours.get(1));
@@ -392,7 +386,7 @@ public class ScreenRecorderService extends Service {
         if (Components.getNoteApplication() == Constants.HUIONNOTE) {
             src = src.submat(0, src.rows(), 5, src.cols() - 5).clone();
         }else if(Components.getNoteApplication() == Constants.YUAN){
-            if (src.rows() > 380 && src.cols() > 10) {
+            if (src.rows() > 350 && src.cols() > 10) {
                 src = src.submat(130, src.rows() - 220, 5, src.cols() - 5);
             }
         }
