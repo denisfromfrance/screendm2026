@@ -1025,7 +1025,7 @@ public class ScreenRecorderService extends Service {
 
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
 
-//            saveImage(canvas);
+            saveImage(canvas);
             //saveImage(rgba);
 
             if (Components.getOrientation() == 0){
@@ -1191,24 +1191,24 @@ public class ScreenRecorderService extends Service {
                         @Override
                         public void onPixelCopyFinished(int copyResult) {
                             if (copyResult == PixelCopy.SUCCESS){
-//                                Utils.bitmapToMat(bitmap, imageMat);
-//                                Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
-//
-//                                if (gray[0].cols() > 150){
-//                                    gray[0] = gray[0].submat(0, gray[0].rows(), 2, gray[0].cols() - 2).clone();
-//                                }
+                                Utils.bitmapToMat(bitmap, imageMat);
+                                Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
 
-                                Utils.bitmapToMat(testBitmap, testImageMat);
-                                final Mat[] gray1 = {new Mat()};
-                                Imgproc.cvtColor(testImageMat, gray1[0], Imgproc.COLOR_RGBA2GRAY);
-
-                                if (gray1[0].cols() > 150){
-                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 5, gray1[0].cols() - 5).clone();
+                                if (gray[0].cols() > 150){
+                                    gray[0] = gray[0].submat(0, gray[0].rows(), 2, gray[0].cols() - 2).clone();
                                 }
 
-                                if (!connectedToServer) {
-//                                    prepareImageAndSend(gray[0], 240, 320);
-                                    prepareImageAndSend(gray1[0], 368, 448);
+//                                Utils.bitmapToMat(testBitmap, testImageMat);
+//                                final Mat[] gray1 = {new Mat()};
+//                                Imgproc.cvtC/olor(testImageMat, gray1[0], Imgproc.COLOR_RGBA2GRAY);
+
+//                                if (gray1[0].cols() > 150){
+//                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 5, gray1[0].cols() - 5).clone();
+//                                }
+
+                                if (connectedToServer) {
+                                    prepareImageAndSend(gray[0], 368, 448);
+//                                    prepareImageAndSend(gray1[0], 368, 448);
                                 }
                             }
                             latestImage.close();
@@ -1314,8 +1314,8 @@ public class ScreenRecorderService extends Service {
                         try {
                             System.out.println("Trying to connect to the server...");
                             socket = new Socket();
-                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-//                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+//                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                             outputStream = socket.getOutputStream();
                             Components.setConnectionStatus(1);
                             connectedToServer = true;
