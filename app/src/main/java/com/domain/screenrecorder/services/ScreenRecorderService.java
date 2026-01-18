@@ -177,7 +177,13 @@ public class ScreenRecorderService extends Service {
             dilatedOriginalMat = Mat.zeros(src.rows(), src.cols(), CvType.CV_8UC1);
         }
 
-        Imgproc.threshold(src, src, 250, 255, Imgproc.THRESH_BINARY);
+
+        if (Components.getNoteApplication() == Constants.YUAN){
+            Imgproc.threshold(src, src, 150, 255, Imgproc.THRESH_BINARY);
+        }else{
+            Imgproc.threshold(src, src, 250, 255, Imgproc.THRESH_BINARY);
+        }
+
 //        Imgproc.rectangle(src, new Rect(0, 0, src.cols(), 100), new Scalar(255, 255, 255));
 //        saveImage(src);
 
@@ -1230,7 +1236,7 @@ public class ScreenRecorderService extends Service {
 //                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 5, gray1[0].cols() - 5).clone();
 //                                }
 
-                                if (!connectedToServer) {
+                                if (connectedToServer) {
                                     prepareImageAndSend(gray[0], 368, 448);
 //                                    prepareImageAndSend(gray1[0], 368, 448);
                                 }
@@ -1338,8 +1344,8 @@ public class ScreenRecorderService extends Service {
                         try {
                             System.out.println("Trying to connect to the server...");
                             socket = new Socket();
-//                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+//                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                             outputStream = socket.getOutputStream();
                             Components.setConnectionStatus(1);
                             connectedToServer = true;
