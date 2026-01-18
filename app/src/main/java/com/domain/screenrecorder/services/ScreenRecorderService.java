@@ -233,6 +233,7 @@ public class ScreenRecorderService extends Service {
             if (meanVal > 127) {
                 Core.bitwise_not(src, src);
             }
+
             src = src.submat(0, src.rows(), 2, src.cols() -2).clone();
 //            saveImage(src);
         }
@@ -382,12 +383,19 @@ public class ScreenRecorderService extends Service {
         Imgproc.threshold(src, src, 150, 255, Imgproc.THRESH_BINARY);
 //        saveImage(src);
         src = removeNoise(src);
+//        saveImage(src);
 
         if (Components.getNoteApplication() == Constants.HUIONNOTE) {
             src = src.submat(0, src.rows(), 5, src.cols() - 5).clone();
         }else if(Components.getNoteApplication() == Constants.YUAN){
+            System.out.println("saving yuan screenshot......");
+//            saveImage(src);
             if (src.rows() > 360 && src.cols() > 10) {
-                src = src.submat(140, src.rows() - 220, 5, src.cols() - 5);
+                src = src.submat(100, src.rows() - 125, 5, src.cols() - 5).clone();
+//                saveImage(src);
+            }else{
+                src = src.submat(0, src.rows(), 5, src.cols() - 5).clone();
+//                saveImage(src);
             }
         }
 
@@ -917,21 +925,45 @@ public class ScreenRecorderService extends Service {
                         }
                     }
                 }else {
-                    if ((cropRoi.x + cropRoi.width <= bw.cols() && imageData[1] + cropRoi.height <= bw.rows()) &&
-                            (cropRoi.x + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows()) &&
-                            (imageData[3] >= 10 && imageData[2] >= 10)
-                    ) {
-                        croppedMat = new Mat(bw, cropRoi);
+                    if (Components.getNoteApplication() == Constants.IARVEL){
+                        if ((cropRoi.x + cropRoi.width <= bw.cols() && imageData[1] + cropRoi.height <= bw.rows()) &&
+                                (cropRoi.x + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows()) &&
+                                (imageData[3] >= 10 && imageData[2] >= 10)
+                        ) {
+                            croppedMat = new Mat(bw, cropRoi);
+                            System.out.println("Image Data: " + Arrays.toString(imageData));
 
-                        System.out.println("Image Data: " + Arrays.toString(imageData));
+                            int newPosX = cropRoi.x - xStart;
+                            if (newPosX < 0) {
+                                newPosX = 0;
+                            }
 
-                        int newPosX = cropRoi.x - xStart;
-                        if (newPosX < 0) {
-                            newPosX = 0;
+                            if (newPosX + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows()){
+                                tempBWSubmat = cropped.submat(new org.opencv.core.Rect(newPosX, imageData[1], imageData[2], imageData[3]));
+                                croppedMat.copyTo(tempBWSubmat);
+                            }
                         }
-                        if (newPosX + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows()){
-                            tempBWSubmat = cropped.submat(new org.opencv.core.Rect(newPosX, imageData[1], imageData[2], imageData[3]));
-                            croppedMat.copyTo(tempBWSubmat);
+                    }else{
+                        if ((cropRoi.x + cropRoi.width <= bw.cols() && imageData[1] + cropRoi.height <= bw.rows()) &&
+                                (imageData[2] <= cropped.cols() && imageData[3] <= cropped.rows()) &&
+                                (imageData[3] >= 10 && imageData[2] >= 10)
+                        ) {
+                            croppedMat = new Mat(bw, cropRoi);
+//                            saveImage(croppedMat);
+                            System.out.println("getting images for yuan");
+                            System.out.println("Image Data: " + Arrays.toString(imageData));
+
+                            cropRoi.y -= (subtractingAmountY);
+
+                            int newPosX = cropRoi.x - xStart;
+                            if (newPosX < 0) {
+                                newPosX = 0;
+                            }
+
+                            if (newPosX + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows()){
+                                tempBWSubmat = cropped.submat(new org.opencv.core.Rect(newPosX, imageData[1], imageData[2], imageData[3]));
+                                croppedMat.copyTo(tempBWSubmat);
+                            }
                         }
                     }
                 }
@@ -946,7 +978,6 @@ public class ScreenRecorderService extends Service {
             }else{
                 transformedImage = transformImageForDisplay(cropped, targetWidth, targetHeight);
             }
-
 
             int newPosX = transformedImage.getNewPosX();
             int newPosY = transformedImage.getNewPosY();
@@ -1199,7 +1230,7 @@ public class ScreenRecorderService extends Service {
 //                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 5, gray1[0].cols() - 5).clone();
 //                                }
 
-                                if (connectedToServer) {
+                                if (!connectedToServer) {
                                     prepareImageAndSend(gray[0], 368, 448);
 //                                    prepareImageAndSend(gray1[0], 368, 448);
                                 }
