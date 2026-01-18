@@ -681,9 +681,6 @@ public class ScreenRecorderService extends Service {
     }
 
     private Bitmap prepareImageForDisplay(Mat original, int targetWidth, int targetHeight) {
-        // 2. Resize to match your display (e.g., 96x64 or 50x50)
-//        Mat src = Mat.zeros(original.getHeight(), original.getWidth(), CvType.CV_8UC3);
-//        Utils.bitmapToMat(original, src);
 
 //        saveImage(original);
 //        saveImage(bw);
@@ -718,7 +715,7 @@ public class ScreenRecorderService extends Service {
         }else{
             dilatedSubmat = mainDilatedMat.submat(0, mainDilatedMat.rows(), 5, mainDilatedMat.cols() - 5);
             bwSubmat = bw.submat(0, bw.rows(), 5, bw.cols() - 5);
-            bw = bwSubmat.clone();
+            bw = bwSubmat;
             Imgproc.dilate(bw, dilatedSubmat, kernel, new Point(90, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
         }
 
@@ -1316,8 +1313,8 @@ public class ScreenRecorderService extends Service {
                         try {
                             System.out.println("Trying to connect to the server...");
                             socket = new Socket();
-                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-//                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+//                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                             outputStream = socket.getOutputStream();
                             Components.setConnectionStatus(1);
                             connectedToServer = true;
