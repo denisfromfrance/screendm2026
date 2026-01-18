@@ -386,8 +386,8 @@ public class ScreenRecorderService extends Service {
         if (Components.getNoteApplication() == Constants.HUIONNOTE) {
             src = src.submat(0, src.rows(), 5, src.cols() - 5).clone();
         }else if(Components.getNoteApplication() == Constants.YUAN){
-            if (src.rows() > 350 && src.cols() > 10) {
-                src = src.submat(130, src.rows() - 220, 5, src.cols() - 5);
+            if (src.rows() > 360 && src.cols() > 10) {
+                src = src.submat(140, src.rows() - 220, 5, src.cols() - 5);
             }
         }
 
