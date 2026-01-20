@@ -1209,8 +1209,8 @@ public class ScreenRecorderService extends Service {
                 outputStream.write(bytes);
                 outputStream.flush();
                 
-                outputStream.write("\n".getBytes(StandardCharsets.US_ASCII))
-                outputStream.flush();
+//                outputStream.write("\n".getBytes(StandardCharsets.US_ASCII))
+//                outputStream.flush();
 
 //                for (int i = 0; i < totalChunks; i++){
 //                    int start = i * chunkSize;
