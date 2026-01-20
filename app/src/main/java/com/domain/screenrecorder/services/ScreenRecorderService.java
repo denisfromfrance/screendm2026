@@ -1168,12 +1168,13 @@ public class ScreenRecorderService extends Service {
         byte[] bytes = new byte[364 * 448];
         mat.get(0, 0, bytes);
         System.out.println(Arrays.toString(bytes));
+        /*
         for (int i = 0; i < bytes.length; i++){
             if (bytes[i] > 0) {
                 System.out.println("Found non zero value. VALUE: " + String.valueOf(bytes[i]));
             }
-        }
-        int chunkSize = bytes.length;
+        }*/
+        int chunkSize = 2048;
         int totalChunks = (int)Math.ceil(bytes.length / (double)chunkSize);
         String header = "IMG " + totalChunks + " " + bytes.length + '\n';
         String connectionHeader = "SCS: ";
@@ -1206,18 +1207,18 @@ public class ScreenRecorderService extends Service {
                 outputStream.write(calculationResult.getBytes(StandardCharsets.US_ASCII));
                 outputStream.flush();
 
-                outputStream.write(bytes);
-                outputStream.flush();
+                //outputStream.write(bytes);
+                //outputStream.flush();
                 
 //                outputStream.write("\n".getBytes(StandardCharsets.US_ASCII))
 //                outputStream.flush();
 
-//                for (int i = 0; i < totalChunks; i++){
-//                    int start = i * chunkSize;
-//                    int length = Math.min(chunkSize, bytes.length - start);
-//                    outputStream.write(bytes, start, length);
-//                    outputStream.flush();
-//                }
+                for (int i = 0; i < totalChunks; i++){
+                    int start = i * chunkSize;
+                    int length = Math.min(chunkSize, bytes.length - start);
+                    outputStream.write(bytes, start, length);
+                    outputStream.flush();
+                }
 
             }catch(IOException exception){
                 exception.printStackTrace();
@@ -1350,14 +1351,14 @@ public class ScreenRecorderService extends Service {
                             }
                             latestImage.close();
                             isProcessing.set(false);
-                            handler.post(captureRunnable);
+                            //handler.post(captureRunnable);
                         }
                     }, handler);
                 }else{
                     isProcessing.set(false);
-                    handler.post(this);
+                    //handler.post(this);
                 }
-//                handler.postDelayed(this, 1500);
+                handler.postDelayed(this, 1500);
             }
         };
 
@@ -1456,8 +1457,8 @@ public class ScreenRecorderService extends Service {
                         try {
                             System.out.println("Trying to connect to the server...");
                             socket = new Socket();
-//                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+//                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                             outputStream = socket.getOutputStream();
                             Components.setConnectionStatus(1);
                             connectedToServer = true;
