@@ -134,6 +134,7 @@ public class ScreenRecorderService extends Service {
     Mat originalImageCleaningKernel;
     Mat writingAreaFilterKernel;
     Mat yuanWritingAreaFilterKernel;
+    Mat yuanMorphKernel;
 
     Mat testImageMat;
 
@@ -186,8 +187,10 @@ public class ScreenRecorderService extends Service {
 
 
         if (Components.getNoteApplication() == Constants.YUAN){
-            Imgproc.threshold(src, src, 10, 255, Imgproc.THRESH_BINARY);
+            Imgproc.threshold(src, src, 5, 255, Imgproc.THRESH_BINARY);
             Imgproc.rectangle(src, new Rect(0, 0, src.cols(), 50), Scalar.all(255.0D), -1);
+            Imgproc.morphologyEx(src, src, Imgproc.MORPH_CLOSE, yuanMorphKernel);
+//            Imgproc.blur(src, src, new Size(10, 10));
 
             if (!isBlack(src)){
                 Core.bitwise_not(src, src);
@@ -289,15 +292,15 @@ public class ScreenRecorderService extends Service {
             if (Components.getNoteApplication() == Constants.YUAN){
                 int contourArea = 0;
                 Rect boundingBox = null;
-                if (contours.size() > 1) {
-                    contours.remove(contours.size() - 1);
-                }
+//                if (contours.size() > 1) {
+//                    contours.remove(contours.size() - 1);
+//                }
 
                 Rect startBBox = Imgproc.boundingRect(contours.get(0));
                 Rect endBBox = Imgproc.boundingRect(contours.get(contours.size() - 1));
 
                 int startY = startBBox.y;
-                int endY = endBBox.y + endBBox.height + 10;
+                int endY = endBBox.y + endBBox.height - 10;
 
                 boundingBox = new Rect(0, startY, mat.cols(), endY - startY);
 
@@ -314,9 +317,7 @@ public class ScreenRecorderService extends Service {
 //                    src = mat.submat(boundingBox);
 //                }
 
-                if (boundingBox.y > 0 && boundingBox.y + boundingBox.height < mat.rows()){
-                    src = mat.submat(boundingBox);
-                }
+                src = mat.submat(boundingBox);
 //                saveImage(src);
             }
 
@@ -1532,6 +1533,8 @@ public class ScreenRecorderService extends Service {
         digitMat = Mat.zeros(32, 368, CvType.CV_8UC1);
         calculationResult = Mat.zeros(32, 368, CvType.CV_8UC1);
         detectedNumbers = Mat.zeros(448, 368, CvType.CV_8UC1);
+
+        yuanMorphKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2));
 
 
         InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuan5);
