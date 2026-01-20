@@ -314,7 +314,9 @@ public class ScreenRecorderService extends Service {
 //                    src = mat.submat(boundingBox);
 //                }
 
-                src = mat.submat(boundingBox);
+                if (boundingBox.y > 0 && boundingBox.y + boundingBox.height < mat.rows()){
+                    src = mat.submat(boundingBox);
+                }
 //                saveImage(src);
             }
 
