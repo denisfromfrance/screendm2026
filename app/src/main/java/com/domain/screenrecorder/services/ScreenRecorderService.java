@@ -95,6 +95,8 @@ public class ScreenRecorderService extends Service {
     private static int HEIGHT = 1920;
     private static int DPI = 320;
 
+    private long lastCaptureTime = 0;
+
     private long latestSeconds = SystemClock.elapsedRealtime();
     private long total = 0;
 
@@ -162,6 +164,8 @@ public class ScreenRecorderService extends Service {
     private boolean startedScreenRecording = false;
     private int latestDisplayedNumber = 0;
     private String currentDisplayingNumber = "";
+
+    private boolean processing = false;
 
     private boolean isBlack(Mat input){
         double meanVal = Core.mean(input).val[0];
@@ -1191,17 +1195,21 @@ public class ScreenRecorderService extends Service {
         System.out.println("Total Chunks sending " + totalChunks + " of size " + chunkSize);
         if (outputStream != null){
             try {
-                outputStream.write(connectionHeader.getBytes(StandardCharsets.UTF_8));
+                outputStream.write(connectionHeader.getBytes(StandardCharsets.US_ASCII));
                 outputStream.flush();
 
                 Components.setConnectionStatus(1);
 
-                outputStream.write(header.getBytes(StandardCharsets.UTF_8));
+                outputStream.write(header.getBytes(StandardCharsets.US_ASCII));
                 outputStream.flush();
-                outputStream.write(calculationResult.getBytes(StandardCharsets.UTF_8));
+
+                outputStream.write(calculationResult.getBytes(StandardCharsets.US_ASCII));
                 outputStream.flush();
 
                 outputStream.write(bytes);
+                outputStream.flush();
+                
+                outputStream.write("\n".getBytes(StandardCharsets.US_ASCII))
                 outputStream.flush();
 
 //                for (int i = 0; i < totalChunks; i++){
@@ -1294,19 +1302,29 @@ public class ScreenRecorderService extends Service {
         captureRunnable = new Runnable() {
             @Override
             public void run() {
+//                long now = SystemClock.elapsedRealtime();
+//                if (now - lastCaptureTime < 1000){
+//                    handler.postDelayed(this, 1000 - (now - lastCaptureTime));
+//                }
+//                lastCaptureTime = now;
+
+                if(!isProcessing.compareAndSet(false, true)){
+                    return;
+                }
+
                 Image latestImage = imageReader.acquireLatestImage();
-                if (latestImage != null){
+                if (latestImage != null) {
                     PixelCopy.request(imageReader.getSurface(), bitmap, new PixelCopy.OnPixelCopyFinishedListener() {
                         @Override
                         public void onPixelCopyFinished(int copyResult) {
-                            if (copyResult == PixelCopy.SUCCESS){
+                            if (copyResult == PixelCopy.SUCCESS) {
                                 Utils.bitmapToMat(bitmap, imageMat);
                                 Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
 
-                                if (gray[0].cols() > 150){
-                                    if (Components.getNoteApplication() == Constants.YUAN){
+                                if (gray[0].cols() > 150) {
+                                    if (Components.getNoteApplication() == Constants.YUAN) {
                                         gray[0] = gray[0].submat(150, gray[0].rows() - 150, 5, gray[0].cols() - 5).clone();
-                                    }else {
+                                    } else {
                                         gray[0] = gray[0].submat(0, gray[0].rows(), 2, gray[0].cols() - 2).clone();
                                     }
                                 }
@@ -1324,15 +1342,22 @@ public class ScreenRecorderService extends Service {
 //                                }
 
                                 if (connectedToServer) {
+                                    processing = true;
                                     prepareImageAndSend(gray[0], 368, 448);
+                                    processing = false;
 //                                    prepareImageAndSend(gray1[0], 368, 448);
                                 }
                             }
                             latestImage.close();
+                            isProcessing.set(false);
+                            handler.post(captureRunnable);
                         }
                     }, handler);
+                }else{
+                    isProcessing.set(false);
+                    handler.post(this);
                 }
-                handler.postDelayed(this, 1500);
+//                handler.postDelayed(this, 1500);
             }
         };
 
@@ -1431,8 +1456,8 @@ public class ScreenRecorderService extends Service {
                         try {
                             System.out.println("Trying to connect to the server...");
                             socket = new Socket();
-                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-//                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+//                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                             outputStream = socket.getOutputStream();
                             Components.setConnectionStatus(1);
                             connectedToServer = true;
