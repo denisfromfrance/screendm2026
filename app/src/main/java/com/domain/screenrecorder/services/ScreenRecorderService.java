@@ -1081,7 +1081,7 @@ public class ScreenRecorderService extends Service {
 
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
 
-            saveImage(canvas);
+//            saveImage(canvas);
             //saveImage(rgba);
 
 //            if (Components.getOrientation() == 0){
