@@ -190,11 +190,13 @@ public class ScreenRecorderService extends Service {
             Imgproc.threshold(src, src, 5, 255, Imgproc.THRESH_BINARY);
             Imgproc.rectangle(src, new Rect(0, 0, src.cols(), 50), Scalar.all(255.0D), -1);
             Imgproc.morphologyEx(src, src, Imgproc.MORPH_CLOSE, yuanMorphKernel);
+
 //            Imgproc.blur(src, src, new Size(10, 10));
 
             if (!isBlack(src)){
                 Core.bitwise_not(src, src);
             }
+
         }else{
             Imgproc.threshold(src, src, 250, 255, Imgproc.THRESH_BINARY);
 //            Imgproc.morphologyEx(src, src, Imgproc.MORPH_OPEN, erosionKernel);
@@ -264,7 +266,7 @@ public class ScreenRecorderService extends Service {
 
         Imgproc.dilate(src, dilatedOriginalMat, writingAreaFilterKernel);
 //        saveImage(src);
-//        saveImage(dilatedOriginalMat);
+        saveImage(dilatedOriginalMat);
 
         List<MatOfPoint> contours = new ArrayList<>();
         Mat hierarchy = new Mat();
@@ -300,7 +302,13 @@ public class ScreenRecorderService extends Service {
                 Rect endBBox = Imgproc.boundingRect(contours.get(contours.size() - 1));
 
                 int startY = startBBox.y;
+
                 int endY = endBBox.y + endBBox.height - 10;
+
+                if (endBBox.y + endBBox.height > mat.cols() - 20){
+                    endBBox = Imgproc.boundingRect(contours.get(contours.size() - 1));
+                    endY = endBBox.y + endBBox.height;
+                }
 
                 boundingBox = new Rect(0, startY, mat.cols(), endY - startY);
 
@@ -1109,7 +1117,7 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-//            saveImage(canvas);
+            saveImage(canvas);
             //saveImage(rgba);
 
 //            if (Components.getOrientation() == 0){
@@ -1363,12 +1371,14 @@ public class ScreenRecorderService extends Service {
                             if (copyResult == PixelCopy.SUCCESS) {
                                 Utils.bitmapToMat(bitmap, imageMat);
                                 Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
-                                if (gray[0].cols() > 150) {
+                                if (gray[0].cols() > 250) {
+
                                     if (Components.getNoteApplication() == Constants.YUAN) {
-                                        gray[0] = gray[0].submat(150, gray[0].rows() - 150, 5, gray[0].cols() - 5).clone();
+                                        gray[0] = gray[0].submat(150, gray[0].rows() - 250, 80, gray[0].cols() - 80).clone();
                                     } else {
                                         gray[0] = gray[0].submat(0, gray[0].rows(), 2, gray[0].cols() - 2).clone();
                                     }
+
                                 }
 
 //                                Utils.bitmapToMat(testBitmap, testImageMat);
@@ -1382,7 +1392,7 @@ public class ScreenRecorderService extends Service {
 //                                    }
 //                                }
 
-                                if (connectedToServer) {
+                                if (!connectedToServer) {
                                     processing = true;
                                     prepareImageAndSend(gray[0], 368, 448);
                                     processing = false;
@@ -1562,7 +1572,7 @@ public class ScreenRecorderService extends Service {
         yuanMorphKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2));
 
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuan5);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuan8);
 
 //        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.correctnumberrepresentation);
 //        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.iarvel3);
