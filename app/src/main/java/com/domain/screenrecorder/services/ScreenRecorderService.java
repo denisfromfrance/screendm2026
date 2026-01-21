@@ -645,7 +645,7 @@ public class ScreenRecorderService extends Service {
 
         calculationResult.setTo(new Scalar(0));
         int font = Imgproc.FONT_HERSHEY_SIMPLEX;
-        double fontScale = 0.7;
+        double fontScale = 1.4;
         int thickness = 2;
         Size textSize = Imgproc.getTextSize(String.valueOf(total), font, fontScale, thickness, null);
         int x = (int)((bw.cols() - textSize.width) / 2);
@@ -1083,7 +1083,7 @@ public class ScreenRecorderService extends Service {
                     }
                 }
 
-                textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, 2, null);
+                textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, 2, null);
                 centerX = (int)((canvas.cols() - textSize.width) / 2);
                 detectedNumbers.setTo(new Scalar(0));
                 Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, newPosY + 20), Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(255), 2);
