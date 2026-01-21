@@ -1392,7 +1392,7 @@ public class ScreenRecorderService extends Service {
 //                                    }
 //                                }
 
-                                if (!connectedToServer) {
+                                if (connectedToServer) {
                                     processing = true;
                                     prepareImageAndSend(gray[0], 368, 448);
                                     processing = false;
