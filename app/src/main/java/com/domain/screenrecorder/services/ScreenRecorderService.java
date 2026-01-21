@@ -351,6 +351,7 @@ public class ScreenRecorderService extends Service {
             }
 
             int imageWidth = src.cols();
+            int imageHeight = src.rows();
             int leftStripeEnd = 0;
             int rightStripeEnd = 0;
 
@@ -1022,7 +1023,7 @@ public class ScreenRecorderService extends Service {
 
             Mat resized = transformedImage.getImage();
             if (newPosY > 10) {
-                newPosY = 10;
+                newPosY = 30;
             }
 //            saveImage(resized);
             org.opencv.core.Rect roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
@@ -1083,6 +1084,30 @@ public class ScreenRecorderService extends Service {
             }
 
             Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
+
+            if (Components.getNoteApplication() == Constants.YUAN){
+                for (int y = 0; y < 50; y++){
+                    Mat row = canvas.row(y);
+                    MatOfDouble mean = new MatOfDouble();
+                    MatOfDouble std = new MatOfDouble();
+
+                    Core.meanStdDev(row, mean, std);
+                    if (std.toArray()[0] > 127){
+                        row.setTo(new Scalar(0, 0, 0));
+                    }
+                }
+
+                for (int y = canvas.rows() - 50; y < canvas.rows(); y++){
+                    Mat row = canvas.row(y);
+                    MatOfDouble mean = new MatOfDouble();
+                    MatOfDouble std = new MatOfDouble();
+
+                    Core.meanStdDev(row, mean, std);
+                    if (std.toArray()[0] > 127){
+                        row.setTo(new Scalar(0, 0, 0));
+                    }
+                }
+            }
 
 //            saveImage(canvas);
             //saveImage(rgba);
