@@ -1044,7 +1044,8 @@ public class ScreenRecorderService extends Service {
                 Mat result = extractLines(canvas);
                 org.opencv.core.Rect answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows(), result.cols(), result.rows());
                 if (newPosY >= 0 && result.cols() <= canvas.cols() && newPosY + resized.rows() + result.rows() <= canvas.rows()){
-                    result.copyTo(canvas.submat(answerPositionRect));
+                    //result.copyTo(canvas.submat(answerPositionRect));
+                    System.out.println("total is displaying..");
                 }else{
                     if (newPosY > 0){
                         int pointsToReduce = (newPosY + resized.rows() + result.rows()) - targetHeight;
@@ -1064,7 +1065,12 @@ public class ScreenRecorderService extends Service {
                         answerPositionRect = new org.opencv.core.Rect(0, resized.rows() - result.rows(), result.cols(), result.rows());
                     }
                 }
-                result.copyTo(canvas.submat(answerPositionRect));
+
+                if (numberList.size() > 2 && currentDisplayingNumber.equals("")){
+                    System.out.println("Show answer");
+                    result.copyTo(canvas.submat(answerPositionRect));
+                }
+
                 newPosY = answerPositionRect.y + result.rows() + 30;
 
                 Size textSize;
@@ -1086,8 +1092,7 @@ public class ScreenRecorderService extends Service {
                 textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, 2, null);
                 centerX = (int)((canvas.cols() - textSize.width) / 2);
                 detectedNumbers.setTo(new Scalar(0));
-                Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, newPosY + 20), Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(255), 2);
-
+                Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, newPosY + 20), Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, new Scalar(255), 2);
                 Core.bitwise_or(detectedNumbers, canvas, canvas);
             }
 
@@ -1374,7 +1379,7 @@ public class ScreenRecorderService extends Service {
                                 if (gray[0].cols() > 250) {
 
                                     if (Components.getNoteApplication() == Constants.YUAN) {
-                                        gray[0] = gray[0].submat(150, gray[0].rows() - 250, 80, gray[0].cols() - 80).clone();
+                                        gray[0] = gray[0].submat(150, gray[0].rows() - 250, 60, gray[0].cols() - 80).clone();
                                     } else {
                                         gray[0] = gray[0].submat(0, gray[0].rows(), 2, gray[0].cols() - 2).clone();
                                     }
