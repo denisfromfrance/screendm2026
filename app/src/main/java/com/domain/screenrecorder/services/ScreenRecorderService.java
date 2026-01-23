@@ -227,7 +227,7 @@ public class ScreenRecorderService extends Service {
 
         Imgproc.dilate(src, dilatedOriginalMat, writingAreaFilterKernel);
 //        saveImage(src);
-        saveImage(dilatedOriginalMat);
+        //saveImage(dilatedOriginalMat);
 
         List<MatOfPoint> contours = new ArrayList<>();
         Mat hierarchy = new Mat();
@@ -947,38 +947,6 @@ public class ScreenRecorderService extends Service {
 
             if (Components.isDoCalculation()){
                 Mat result = extractLines(canvas);
-                org.opencv.core.Rect answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows(), result.cols(), result.rows());
-                if (newPosY >= 0 && result.cols() <= canvas.cols() && newPosY + resized.rows() + result.rows() <= canvas.rows()){
-                    //result.copyTo(canvas.submat(answerPositionRect));
-                    System.out.println("total is displaying..");
-                }else{
-                    if (newPosY > 0){
-                        int pointsToReduce = (newPosY + resized.rows() + result.rows()) - targetHeight;
-                        if (newPosY >= pointsToReduce){
-                            newPosY -= pointsToReduce;
-
-                            canvas.setTo(new Scalar(0));
-                            roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
-                            targetArea = canvas.submat(roi);
-                            resized.copyTo(targetArea);
-
-                            answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows(), result.cols(), result.rows());
-                        }else{
-                            answerPositionRect = new org.opencv.core.Rect(0, resized.rows() - result.rows(), result.cols(), result.rows());
-                        }
-                    }else{
-                        answerPositionRect = new org.opencv.core.Rect(0, resized.rows() - result.rows(), result.cols(), result.rows());
-                    }
-                }
-
-                if (numberList.size() == 3 && currentDisplayingNumber.equals("")){
-                    System.out.println("Show answer");
-                    imagePosX = answerPositionRect.x;
-                    imagePosY = answerPositionRect.y;
-                    result.copyTo(canvas.submat(answerPositionRect));
-                }
-
-                newPosY = answerPositionRect.y + result.rows() + 30;
 
                 Size textSize;
                 int centerX;
@@ -986,14 +954,51 @@ public class ScreenRecorderService extends Service {
                     if (latestDisplayedNumber != numberList.get(numberList.size() - 1)) {
                         latestDisplayedNumber = numberList.get(numberList.size() - 1);
                         currentDisplayingNumber = String.valueOf(latestDisplayedNumber);
-                        new Handler(Looper.getMainLooper()).postDelayed(() -> currentDisplayingNumber = "", Components.getDelay() * 1000L);
+                        //new Handler(Looper.getMainLooper()).postDelayed(() -> currentDisplayingNumber = "", Components.getDelay() * 1000L);
                     }
                 }
 
                 textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, 2, null);
                 centerX = (int)((canvas.cols() - textSize.width) / 2);
                 detectedNumbers.setTo(new Scalar(0));
-                Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, newPosY + 20), Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, new Scalar(255), 2);
+
+                canvas.setTo(new Scalar(0));
+                roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
+                targetArea = canvas.submat(roi);
+                resized.copyTo(targetArea);
+
+                org.opencv.core.Rect answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows() + ((int)textSize.height), result.cols(), result.rows());
+                if (newPosY >= 0 && result.cols() <= canvas.cols() && newPosY + resized.rows() + result.rows() + ((int)textSize.height) <= canvas.rows()){
+                    //result.copyTo(canvas.submat(answerPositionRect));
+                    System.out.println("total is displaying..");
+                }else{
+                    if (newPosY > 0){
+                        int pointsToReduce = (newPosY + resized.rows() + ((int)textSize.height)) + result.rows() - targetHeight;
+                        if (newPosY >= pointsToReduce){
+                            newPosY -= pointsToReduce;
+
+                            answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows() + ((int)textSize.height), result.cols(), detectedNumbers.rows());
+                        }else{
+                            answerPositionRect = new org.opencv.core.Rect(0, resized.rows() - (((int)textSize.height) + result.rows()), result.cols(), result.rows());
+                        }
+                    }else{
+                        answerPositionRect = new org.opencv.core.Rect(0, resized.rows() - (((int)textSize.height) + result.rows()), result.cols(), result.rows());
+                    }
+                }
+
+                // move answer little bit down
+
+                answerPositionRect.y += 20;
+                if (numberList.size() == 3){
+                    System.out.println("Show answer");
+                    imagePosX = answerPositionRect.x;
+                    imagePosY = answerPositionRect.y;
+                    result.copyTo(canvas.submat(answerPositionRect));
+                }
+
+                answerPositionRect.y -= (int)textSize.height;
+                Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, newPosY), Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, new Scalar(255), 2);
+
                 Core.bitwise_or(detectedNumbers, canvas, canvas);
             }
 
@@ -1023,7 +1028,7 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            saveImage(canvas);
+            //saveImage(canvas);
             //saveImage(rgba);
         }
         return canvas;
