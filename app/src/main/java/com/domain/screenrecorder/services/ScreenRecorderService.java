@@ -1028,7 +1028,7 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            saveImage(canvas);
+            //saveImage(canvas);
             //saveImage(rgba);
         }
         return canvas;
@@ -1176,7 +1176,6 @@ public class ScreenRecorderService extends Service {
                                 } else {
                                     gray[0] = gray[0].submat(0, gray[0].rows(), 2, gray[0].cols() - 2).clone();
                                 }
-
                             }
 
 //                                Utils.bitmapToMat(testBitmap, testImageMat);
@@ -1190,7 +1189,7 @@ public class ScreenRecorderService extends Service {
 //                                    }
 //                                }
 
-                            if (!connectedToServer) {
+                            if (connectedToServer) {
                                 prepareImageAndSend(gray[0]);
 //                                    prepareImageAndSend(gray1[0]);
                             }
