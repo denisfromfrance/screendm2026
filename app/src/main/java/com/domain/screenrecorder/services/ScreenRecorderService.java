@@ -988,7 +988,7 @@ public class ScreenRecorderService extends Service {
 
                 // move answer little bit down
 
-                answerPositionRect.y += 20;
+                answerPositionRect.y += 40;
                 if (numberList.size() == 3){
                     System.out.println("Show answer");
                     imagePosX = answerPositionRect.x;
@@ -996,7 +996,7 @@ public class ScreenRecorderService extends Service {
                     result.copyTo(canvas.submat(answerPositionRect));
                 }
 
-                answerPositionRect.y -= (int)textSize.height;
+                newPosY = answerPositionRect.y - (int)textSize.height;
                 Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, newPosY), Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, new Scalar(255), 2);
 
                 Core.bitwise_or(detectedNumbers, canvas, canvas);
@@ -1028,7 +1028,7 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            //saveImage(canvas);
+            saveImage(canvas);
             //saveImage(rgba);
         }
         return canvas;
@@ -1190,7 +1190,7 @@ public class ScreenRecorderService extends Service {
 //                                    }
 //                                }
 
-                            if (connectedToServer) {
+                            if (!connectedToServer) {
                                 prepareImageAndSend(gray[0]);
 //                                    prepareImageAndSend(gray1[0]);
                             }
