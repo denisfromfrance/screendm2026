@@ -11,16 +11,12 @@ import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.ImageFormat;
 import android.graphics.PixelFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.media.Image;
 import android.media.ImageReader;
-import android.media.MediaCodec;
-import android.media.MediaFormat;
-import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
@@ -29,11 +25,9 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
-import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.util.DisplayMetrics;
 import android.view.PixelCopy;
-import android.view.Surface;
 import android.view.WindowManager;
 
 import androidx.core.app.NotificationCompat;
@@ -41,10 +35,7 @@ import androidx.core.app.NotificationCompat;
 import com.domain.screenrecorder.R;
 import com.domain.screenrecorder.states.Components;
 import com.domain.screenrecorder.states.Constants;
-import com.domain.screenrecorder.states.FrameBuffer;
 import com.domain.screenrecorder.states.TransformedImage;
-import com.domain.screenrecorder.utils.Consumer;
-import com.domain.screenrecorder.utils.ConsumerThread;
 import com.domain.screenrecorder.utils.DigitClassifier;
 
 import org.opencv.android.Utils;
@@ -59,68 +50,55 @@ import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class ScreenRecorderService extends Service {
     private MediaProjection mediaProjection;
-    private MediaProjectionManager projectionManager;
-    private MediaRecorder mediaRecorder;
     private DigitClassifier digitClassifier;
 
     private static int WIDTH = 1080;
     private static int HEIGHT = 1920;
     private static int DPI = 320;
 
-    private long lastCaptureTime = 0;
+    private int latestDisplayedNumber = 0;
+    int resultCode;
 
-    private long latestSeconds = SystemClock.elapsedRealtime();
     private long total = 0;
 
     private SurfaceTexture captureTexture;
-    private Surface captureSurface;
     private VirtualDisplay captureVirtualDisplay;
 
     ArrayList<Integer> numberList = new ArrayList<>();
 
     private final AtomicBoolean isProcessing = new AtomicBoolean(false);
-    private final AtomicReference<Bitmap> latestFrame = new AtomicReference<>();
 
     HandlerThread networkConnectionHandlerThread;
+    HandlerThread imageThread;
+
     Handler networkConnectionHandler;
+    Handler handler;
+
+    Runnable captureRunnable;
 
     boolean connectedToServer = false;
-
-    Image image;
-    Image.Plane plane;
-    ByteBuffer byteBuffer;
-    Bitmap bitmap;
-    Bitmap cropped;
-    Bitmap original;
-    Bitmap finalCropped;
+    private boolean threadStarted = false;
+    private boolean startedScreenRecording = false;
 
     Mat charExtractingKernel;
     Mat lineExtractingKernel;
@@ -133,40 +111,25 @@ public class ScreenRecorderService extends Service {
     Mat dilatedOriginalMat;
     Mat originalImageCleaningKernel;
     Mat writingAreaFilterKernel;
-    Mat yuanWritingAreaFilterKernel;
     Mat yuanMorphKernel;
-
     Mat testImageMat;
-
-    boolean consumerThreadIsRunning = false;
-
+    Mat erosionKernel;
 
     Bitmap outputBitmap;
-
-    HandlerThread imageThread;
-
     Bitmap testBitmap;
-
-    Handler handler;
-    Runnable captureRunnable;
 
     ImageReader imageReader;
 
     Socket socket;
     OutputStream outputStream;
-    private BlockingQueue<Bitmap> imageQueue;
 
-    Mat erosionKernel;
-
-    int resultCode;
     Intent data;
 
-    private boolean threadStarted = false;
-    private boolean startedScreenRecording = false;
-    private int latestDisplayedNumber = 0;
     private String currentDisplayingNumber = "";
 
-    private boolean processing = false;
+    private int imagePosX = 0;
+    private int imagePosY = 0;
+
 
     private boolean isBlack(Mat input){
         double meanVal = Core.mean(input).val[0];
@@ -208,7 +171,6 @@ public class ScreenRecorderService extends Service {
         if (Components.getNoteApplication() == Constants.IARVEL) {
             int imageWidth = src.cols();
             int leftStripeEnd = 0;
-            int rightStripeEnd = 0;
 
             System.out.println("Removing left blank area...");
             for (int x = 0; x < 200; x++){
@@ -224,7 +186,7 @@ public class ScreenRecorderService extends Service {
             src.colRange(0, leftStripeEnd + 3).setTo(new Scalar(255, 255, 255));
 
             int x1 = 0;
-            int x2 = 0;
+            int x2;
             for (int x = imageWidth - 1; x > imageWidth - 80; x--){
                 Mat col = src.col(x);
                 MatOfDouble mean = new MatOfDouble();
@@ -233,7 +195,6 @@ public class ScreenRecorderService extends Service {
                 Core.meanStdDev(col, mean, std);
                 System.out.println("Standard Deviation: " + std.toArray()[0]);
                 if (std.toArray()[0] == 0){
-                    rightStripeEnd = x;
                     x1 = x;
                 }
             }
@@ -275,13 +236,10 @@ public class ScreenRecorderService extends Service {
         if (contours.size() > 0) {
             System.out.println("####### Found more than 1 contour");
 
-            contours.sort(new Comparator<MatOfPoint>() {
-                @Override
-                public int compare(MatOfPoint o1, MatOfPoint o2) {
-                    org.opencv.core.Rect rect1 = Imgproc.boundingRect(o1);
-                    org.opencv.core.Rect rect2 = Imgproc.boundingRect(o2);
-                    return Integer.compare(rect1.y, rect2.y);
-                }
+            contours.sort((o1, o2) -> {
+                Rect rect1 = Imgproc.boundingRect(o1);
+                Rect rect2 = Imgproc.boundingRect(o2);
+                return Integer.compare(rect1.y, rect2.y);
             });
 
             org.opencv.core.Rect canvasArea = Imgproc.boundingRect(contours.get(0));
@@ -289,14 +247,10 @@ public class ScreenRecorderService extends Service {
                 canvasArea = Imgproc.boundingRect(contours.get(1));
                 src = mat.submat(canvasArea);
             }
-            System.out.println("Extracted content from huion");
+            System.out.println("Extracted content from Huion");
 
             if (Components.getNoteApplication() == Constants.YUAN){
-                int contourArea = 0;
-                Rect boundingBox = null;
-//                if (contours.size() > 1) {
-//                    contours.remove(contours.size() - 1);
-//                }
+                Rect boundingBox;
 
                 Rect startBBox = Imgproc.boundingRect(contours.get(0));
                 Rect endBBox = Imgproc.boundingRect(contours.get(contours.size() - 1));
@@ -311,19 +265,6 @@ public class ScreenRecorderService extends Service {
                 }
 
                 boundingBox = new Rect(0, startY, mat.cols(), endY - startY);
-
-//                for (MatOfPoint contour : contours){
-//                    Rect rect = Imgproc.boundingRect(contour);
-//                    int area = rect.width * rect.height;
-//                    if (area > contourArea){
-//                        contourArea = area;
-//                        boundingBox = rect;
-//                    }
-//                }
-
-//                if (boundingBox != null){
-//                    src = mat.submat(boundingBox);
-//                }
 
                 src = mat.submat(boundingBox);
 //                saveImage(src);
@@ -359,9 +300,7 @@ public class ScreenRecorderService extends Service {
             }
 
             int imageWidth = src.cols();
-            int imageHeight = src.rows();
             int leftStripeEnd = 0;
-            int rightStripeEnd = 0;
 
 //            saveImage(src);
 
@@ -386,7 +325,7 @@ public class ScreenRecorderService extends Service {
 
             System.out.println("Removing right blank area...");
             int x1 = 0;
-            int x2 = 0;
+            int x2;
             for (int x = imageWidth - 1; x > imageWidth - 80; x--){
                 Mat col = src.col(x);
                 MatOfDouble mean = new MatOfDouble();
@@ -395,7 +334,6 @@ public class ScreenRecorderService extends Service {
                 Core.meanStdDev(col, mean, std);
                 System.out.println("Standard Deviation: " + std.toArray()[0]);
                 if (std.toArray()[0] == 0){
-                    rightStripeEnd = x;
                     x1 = x;
                 }
             }
@@ -487,19 +425,12 @@ public class ScreenRecorderService extends Service {
         Utils.matToBitmap(mat, croppedPortion);
         saveImageToPublicDirectory(getApplicationContext(), croppedPortion, String.format(
                 "Cropped Digit-%s.jpg",
-                String.valueOf(new Date().getTime())));
-    }
-
-    public void saveBitmap(Bitmap bitmap){
-        saveImageToPublicDirectory(getApplicationContext(), bitmap, String.format(
-                "Cropped Digit-%s.jpg",
-                String.valueOf(new Date().getTime())));
+                new Date().getTime()));
     }
 
     private String extractChar(Mat input, org.opencv.core.Rect lineRect){
         Mat bw = input.clone();
 //        saveImage(bw);
-//        List<MatOfPoint> tempContours = getContours(input, true);
         List<MatOfPoint> contours = getContours(bw, true);
         List<org.opencv.core.Rect> boundingBoxes = getBoundingBoxes(contours);
 
@@ -512,12 +443,7 @@ public class ScreenRecorderService extends Service {
         double aspectRatio;
 
         boundingBoxes = boundingBoxes.stream().filter(rect -> rect.height > 5).collect(Collectors.toList());
-        boundingBoxes = boundingBoxes.stream().sorted(new Comparator<org.opencv.core.Rect>() {
-            @Override
-            public int compare(org.opencv.core.Rect o1, org.opencv.core.Rect o2) {
-                return Math.min(o1.x, o2.x);
-            }
-        }).collect(Collectors.toList());
+        boundingBoxes = boundingBoxes.stream().sorted((o1, o2) -> Math.min(o1.x, o2.x)).collect(Collectors.toList());
 
         StringBuilder stringBuilder = new StringBuilder();
         System.out.println("Chars found: " + boundingBoxes.size());
@@ -584,9 +510,6 @@ public class ScreenRecorderService extends Service {
     }
 
     private Mat extractLines(Mat bw){
-//        Mat bw = convertToBlackAndWhite(src);
-//        Mat bw = src.clone();
-//        saveImage(bw);
         List<MatOfPoint> contours = getContours(bw, false);
         List<org.opencv.core.Rect> boundingBoxes = getBoundingBoxes(contours);
         Collections.reverse(boundingBoxes);
@@ -653,6 +576,7 @@ public class ScreenRecorderService extends Service {
         if (x < 0){
             x = 0;
         }
+
         int y = 30;
         Imgproc.putText(calculationResult, String.valueOf(total), new Point(x, y), font, fontScale, new Scalar(255), thickness);
 
@@ -662,15 +586,6 @@ public class ScreenRecorderService extends Service {
         return calculationResult;
     }
 
-
-    public Mat smoothImage(Mat inputImage){
-        Mat thick = inputImage.clone();
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(5, 5));
-        //Imgproc.dilate(inputImage, thick, kernel);
-        Imgproc.morphologyEx(thick, thick, Imgproc.MORPH_CLOSE, kernel);
-
-        return thick;
-    }
 
     public Mat removeNoise(Mat mat){
         Mat labels = new Mat();
@@ -727,8 +642,9 @@ public class ScreenRecorderService extends Service {
         return new TransformedImage(resized, newPosX, newPosY, newWidth, newHeight, false);
     }
 
-    private Mat prepareImageForDisplay(Mat original, int targetWidth, int targetHeight) {
-
+    private Mat prepareImageForDisplay(Mat original) {
+        int targetWidth = 368;
+        int targetHeight = 448;
 //        saveImage(original);
 //        saveImage(bw);
 
@@ -777,25 +693,16 @@ public class ScreenRecorderService extends Service {
         Imgproc.findContours(dilatedSubmat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
         System.out.println("Contours Count: " + contours.size());
 
-        contours.sort(new Comparator<MatOfPoint>() {
-            @Override
-            public int compare(MatOfPoint o1, MatOfPoint o2) {
-                org.opencv.core.Rect rect1 = Imgproc.boundingRect(o1);
-                org.opencv.core.Rect rect2 = Imgproc.boundingRect(o2);
-                return Integer.compare(rect1.y, rect2.y);
-            }
+        contours.sort((o1, o2) -> {
+            Rect rect1 = Imgproc.boundingRect(o1);
+            Rect rect2 = Imgproc.boundingRect(o2);
+            return Integer.compare(rect1.y, rect2.y);
         });
 
-//        if (Components.getNoteApplication() == Constants.HUIONNOTE){
-//            if (contours.size() > 1) {
-//                contours.remove(0);
-//            }
-//        }
+        Map<MatOfPoint, Integer[]> subMats = new LinkedHashMap<>();
 
-        Map<MatOfPoint, Integer[]> submats = new LinkedHashMap<>();
-
-        int groupImageHeight = 0;
-        int groupImageWidth = 0;
+        int groupImageHeight;
+        int groupImageWidth;
 
         int xStart = Integer.MAX_VALUE;
         int xEnd = 0;
@@ -857,12 +764,12 @@ public class ScreenRecorderService extends Service {
             }
 
             if (Components.getNoteApplication() == Constants.IARVEL) {
-                submats.put(c, new Integer[]{(imagePosX) + subtractingAmountX, (imagePosY - yStart), imageWidth, imageHeight});
+                subMats.put(c, new Integer[]{(imagePosX) + subtractingAmountX, (imagePosY - yStart), imageWidth, imageHeight});
             }else {
                 if (imageWidth > subtractingAmountX * 2) {
                     imageWidth -= subtractingAmountX * 2;
                 }
-                submats.put(c, new Integer[]{(imagePosX) + subtractingAmountX, (imagePosY - yStart), imageWidth, imageHeight});
+                subMats.put(c, new Integer[]{(imagePosX) + subtractingAmountX, (imagePosY - yStart), imageWidth, imageHeight});
             }
             System.out.println("Image PosX: " + imagePosX);
             System.out.println("Image PosY: " + imagePosY);
@@ -903,9 +810,7 @@ public class ScreenRecorderService extends Service {
         if (contours.size() > 0) {
 
             groupImageWidth = (xEnd - xStart);
-//            if (groupImageWidth > subtractingAmountX * 2){
-//                groupImageWidth -= (subtractingAmountX * 2);
-//            }
+
             groupImageHeight = (yEnd - yStart) + (subtractingAmountY * 2);
 
 //            Imgproc.rectangle(bw, new org.opencv.core.Rect(xStart, yStart, groupImageWidth, groupImageHeight), new Scalar(255), 2);
@@ -924,7 +829,7 @@ public class ScreenRecorderService extends Service {
             Mat tempBWSubmat;
             Mat croppedMat;
 
-            for (Map.Entry<MatOfPoint, Integer[]> content : submats.entrySet()){
+            for (Map.Entry<MatOfPoint, Integer[]> content : subMats.entrySet()){
                 org.opencv.core.Rect cropRoi = Imgproc.boundingRect(content.getKey());
                 Integer[] imageData = content.getValue();
 
@@ -1030,7 +935,7 @@ public class ScreenRecorderService extends Service {
             System.out.println(transformedImage);
 
             Mat resized = transformedImage.getImage();
-            if (newPosY > 10) {
+            if (newPosY > 30) {
                 newPosY = 30;
             }
 //            saveImage(resized);
@@ -1066,8 +971,10 @@ public class ScreenRecorderService extends Service {
                     }
                 }
 
-                if (numberList.size() > 2 && currentDisplayingNumber.equals("")){
+                if (numberList.size() == 3 && currentDisplayingNumber.equals("")){
                     System.out.println("Show answer");
+                    imagePosX = answerPositionRect.x;
+                    imagePosY = answerPositionRect.y;
                     result.copyTo(canvas.submat(answerPositionRect));
                 }
 
@@ -1075,17 +982,11 @@ public class ScreenRecorderService extends Service {
 
                 Size textSize;
                 int centerX;
-                String number;
                 if (numberList.size()> 0) {
                     if (latestDisplayedNumber != numberList.get(numberList.size() - 1)) {
                         latestDisplayedNumber = numberList.get(numberList.size() - 1);
                         currentDisplayingNumber = String.valueOf(latestDisplayedNumber);
-                        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                currentDisplayingNumber = "";
-                            }
-                        }, Components.getDelay() * 1000L);
+                        new Handler(Looper.getMainLooper()).postDelayed(() -> currentDisplayingNumber = "", Components.getDelay() * 1000L);
                     }
                 }
 
@@ -1124,111 +1025,15 @@ public class ScreenRecorderService extends Service {
 
             saveImage(canvas);
             //saveImage(rgba);
-
-//            if (Components.getOrientation() == 0){
-//                Mat rotated = new Mat();
-//                Core.rotate(rgba, rotated, Core.ROTATE_90_CLOCKWISE);
-//                Utils.matToBitmap(rotated, outputBitmap);
-////                saveImage(rotated);
-//            }else{
-//                Utils.matToBitmap(rgba, outputBitmap);
-//            }
         }
-//        else{
-//            Utils.matToBitmap(canvas, outputBitmap);
-//        }
-
-//        return outputBitmap;
         return canvas;
-    }
-
-
-    private byte[] bitmapTo1BitArray(Bitmap bmp) {
-        int width = bmp.getWidth();
-        int height = bmp.getHeight();
-
-        byte[] bytes = new byte[width * height]; // 1 byte per pixel (0 or 1)
-
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-
-                int pixel = bmp.getPixel(x, y);
-                int r = (pixel >> 16) & 0xFF;
-
-                // Assume black = 1, white = 0
-                bytes[y * width + x] = (byte) (r < 128 ? 1 : 0);
-            }
-        }
-        return bytes;
-    }
-
-    private void sendBytes(byte[] bytes){
-        int chunkSize = 2048;
-        int totalChunks = (int)Math.ceil(bytes.length / (double)chunkSize);
-        String header = "IMG " + totalChunks + " " + bytes.length + '\n';
-        String connectionHeader = "SCS: ";
-        int connectionStatus = Components.getConnectionStatus();
-        if (connectionStatus == 1){
-            connectionHeader = connectionHeader.concat("S");
-        }else if(connectionStatus == 0){
-            connectionHeader = connectionHeader.concat("D");
-        }else{
-            connectionHeader = connectionHeader.concat("F");
-        }
-
-        connectionHeader = connectionHeader.concat("\n");
-
-        String calculationResult = "TOTAL: " + this.total + "\n";
-
-        System.out.println("Sending header and data!");
-        System.out.println("Calculation Result: " + calculationResult);
-        System.out.println("Total Chunks sending " + totalChunks + " of size " + chunkSize);
-        if (outputStream != null){
-            try {
-                outputStream.write(connectionHeader.getBytes(StandardCharsets.UTF_8));
-                outputStream.flush();
-
-                Components.setConnectionStatus(1);
-
-                outputStream.write(header.getBytes(StandardCharsets.UTF_8));
-                outputStream.flush();
-                outputStream.write(calculationResult.getBytes(StandardCharsets.UTF_8));
-                outputStream.flush();
-
-                for (int i = 0; i < totalChunks; i++){
-                    int start = i * chunkSize;
-                    int length = Math.min(chunkSize, bytes.length - start);
-                    outputStream.write(bytes, start, length);
-                    outputStream.flush();
-                }
-
-            }catch(IOException exception){
-                exception.printStackTrace();
-                try{
-                    Components.setConnectionStatus(0);
-                    outputStream.close();
-
-                    outputStream = null;
-                    connectedToServer = false;
-                    connectToServer();
-
-                }catch(IOException e){
-                    e.printStackTrace();
-                }
-            }
-        }
     }
 
     private void sendBytes(Mat mat){
         byte[] bytes = new byte[364 * 448];
         mat.get(0, 0, bytes);
         System.out.println(Arrays.toString(bytes));
-        /*
-        for (int i = 0; i < bytes.length; i++){
-            if (bytes[i] > 0) {
-                System.out.println("Found non zero value. VALUE: " + String.valueOf(bytes[i]));
-            }
-        }*/
+
         int chunkSize = 2048;
         int totalChunks = (int)Math.ceil(bytes.length / (double)chunkSize);
         String header = "IMG " + totalChunks + " " + bytes.length + '\n';
@@ -1244,7 +1049,7 @@ public class ScreenRecorderService extends Service {
 
         connectionHeader = connectionHeader.concat("\n");
 
-        String calculationResult = "TOTAL: " + this.total + "\n";
+        String calculationResult = "TOTAL: " + this.total + " " + imagePosX + imagePosY + "\n";
 
         System.out.println("Sending header and data!");
         System.out.println("Calculation Result: " + calculationResult);
@@ -1292,23 +1097,14 @@ public class ScreenRecorderService extends Service {
         }
     }
 
-//    private void prepareImageAndSend(Bitmap bitmap, int width, int height){
-//        Bitmap image = prepareImageForDisplay(bitmap, width, height);
-//        System.out.println("Image received.");
-//        sendBytes(bitmapTo1BitArray(image));
-//    }
-
-    private void prepareImageAndSend(Mat bitmap, int width, int height){
-//        Bitmap image = prepareImageForDisplay(bitmap, width, height);
-        Mat image = prepareImageForDisplay(bitmap, width, height);
+    private void prepareImageAndSend(Mat bitmap){
+        Mat image = prepareImageForDisplay(bitmap);
         System.out.println("Image received.");
-//        sendBytes(bitmapTo1BitArray(image));
         sendBytes(image);
     }
 
     public ScreenRecorderService() {
 //        textRecognition = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
-        imageQueue = new LinkedBlockingDeque<>();
     }
 
     private void createVirtualDisplay() throws IOException {
@@ -1319,7 +1115,7 @@ public class ScreenRecorderService extends Service {
         captureTexture = new SurfaceTexture(10);
         captureTexture.setDefaultBufferSize(WIDTH, HEIGHT);
 
-        captureSurface = new Surface(captureTexture);
+//        captureSurface = new Surface(captureTexture);
         //captureSurface = mediaRecorder.getSurface();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE){
@@ -1345,7 +1141,6 @@ public class ScreenRecorderService extends Service {
         System.out.println("Display height: " + HEIGHT);
         System.out.println("Display DPI: " + DPI);
 
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
 
         testImageMat = new Mat(testBitmap.getHeight(), testBitmap.getWidth(), CvType.CV_8UC4);
 
@@ -1358,11 +1153,6 @@ public class ScreenRecorderService extends Service {
         captureRunnable = new Runnable() {
             @Override
             public void run() {
-//                long now = SystemClock.elapsedRealtime();
-//                if (now - lastCaptureTime < 1000){
-//                    handler.postDelayed(this, 1000 - (now - lastCaptureTime));
-//                }
-//                lastCaptureTime = now;
 
                 if(!isProcessing.compareAndSet(false, true)){
                     return;
@@ -1370,21 +1160,19 @@ public class ScreenRecorderService extends Service {
 
                 Image latestImage = imageReader.acquireLatestImage();
                 if (latestImage != null) {
-                    PixelCopy.request(imageReader.getSurface(), bitmap, new PixelCopy.OnPixelCopyFinishedListener() {
-                        @Override
-                        public void onPixelCopyFinished(int copyResult) {
-                            if (copyResult == PixelCopy.SUCCESS) {
-                                Utils.bitmapToMat(bitmap, imageMat);
-                                Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
-                                if (gray[0].cols() > 250) {
+                    PixelCopy.request(imageReader.getSurface(), bitmap, copyResult -> {
+                        if (copyResult == PixelCopy.SUCCESS) {
+                            Utils.bitmapToMat(bitmap, imageMat);
+                            Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
+                            if (gray[0].cols() > 250) {
 
-                                    if (Components.getNoteApplication() == Constants.YUAN) {
-                                        gray[0] = gray[0].submat(150, gray[0].rows() - 250, 60, gray[0].cols() - 80).clone();
-                                    } else {
-                                        gray[0] = gray[0].submat(0, gray[0].rows(), 2, gray[0].cols() - 2).clone();
-                                    }
-
+                                if (Components.getNoteApplication() == Constants.YUAN) {
+                                    gray[0] = gray[0].submat(150, gray[0].rows() - 250, 60, gray[0].cols() - 50).clone();
+                                } else {
+                                    gray[0] = gray[0].submat(0, gray[0].rows(), 2, gray[0].cols() - 2).clone();
                                 }
+
+                            }
 
 //                                Utils.bitmapToMat(testBitmap, testImageMat);
 //                                final Mat[] gray1 = {new Mat()};
@@ -1397,17 +1185,14 @@ public class ScreenRecorderService extends Service {
 //                                    }
 //                                }
 
-                                if (connectedToServer) {
-                                    processing = true;
-                                    prepareImageAndSend(gray[0], 368, 448);
-                                    processing = false;
-//                                    prepareImageAndSend(gray1[0], 368, 448);
-                                }
+                            if (connectedToServer) {
+                                prepareImageAndSend(gray[0]);
+//                                    prepareImageAndSend(gray1[0]);
                             }
-                            latestImage.close();
-                            isProcessing.set(false);
-                            //handler.post(captureRunnable);
                         }
+                        latestImage.close();
+                        isProcessing.set(false);
+                        //handler.post(captureRunnable);
                     }, handler);
                 }else{
                     isProcessing.set(false);
@@ -1430,13 +1215,13 @@ public class ScreenRecorderService extends Service {
         );
     }
 
-    public static Uri saveImageToPublicDirectory(Context context, Bitmap bitmap, String fileName) {
+    public static void saveImageToPublicDirectory(Context context, Bitmap bitmap, String fileName) {
         ContentValues values = new ContentValues();
         values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName + ".jpg");
         values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
         values.put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/MyAppImages"); // Your folder name
 
-        Uri uri = null;
+        Uri uri;
         OutputStream outputStream = null;
 
         try {
@@ -1444,21 +1229,17 @@ public class ScreenRecorderService extends Service {
             uri = context.getContentResolver()
                     .insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
 
-            if (uri == null) {
-                return null;
+            if (uri != null) {
+
+                // Open output stream
+                outputStream = context.getContentResolver().openOutputStream(uri);
+
+                // Write the bitmap into the stream
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
             }
-
-            // Open output stream
-            outputStream = context.getContentResolver().openOutputStream(uri);
-
-            // Write the bitmap into the stream
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
-
-            return uri; // returns the image URI (can be shared)
 
         } catch (Exception e) {
             e.printStackTrace();
-            return null;
 
         } finally {
             if (outputStream != null) {
@@ -1469,33 +1250,31 @@ public class ScreenRecorderService extends Service {
 
     private void createNotification(){
         String CHANNEL_ID = "Screen Record Channel";
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
-            NotificationChannel notificationChannel = new NotificationChannel(CHANNEL_ID, "Screen Record", NotificationManager.IMPORTANCE_LOW);
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            manager.createNotificationChannel(notificationChannel);
+        NotificationChannel notificationChannel = new NotificationChannel(CHANNEL_ID, "Screen Record", NotificationManager.IMPORTANCE_LOW);
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        manager.createNotificationChannel(notificationChannel);
 
-            Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                    .setContentTitle("Recording in progress")
-                    .setContentText("Your screen is being recorded")
-                    .setSmallIcon(R.drawable.ic_launcher_foreground)
-                    .build();
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("Recording in progress")
+                .setContentText("Your screen is being recorded")
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .build();
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                startForeground(
-                        1,
-                        notification,
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
-                );
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(
-                        1,
-                        notification,
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
-                );
-            } else {
-                // Older versions
-                startForeground(1, notification);
-            }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                    1,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+            );
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                    1,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+            );
+        } else {
+            // Older versions
+            startForeground(1, notification);
         }
     }
 
@@ -1545,7 +1324,7 @@ public class ScreenRecorderService extends Service {
 
         createNotification();
 
-        projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        MediaProjectionManager projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
         System.out.println("Setting up everything...");
         try {
@@ -1579,12 +1358,7 @@ public class ScreenRecorderService extends Service {
 
         InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuan8);
 
-//        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.correctnumberrepresentation);
-//        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.iarvel3);
-
         testBitmap = BitmapFactory.decodeStream(is);
-
-//        socket = new Socket();
 
         startedScreenRecording = true;
 
@@ -1595,14 +1369,11 @@ public class ScreenRecorderService extends Service {
 
         mediaProjection = projectionManager.getMediaProjection(resultCode, data);
 
-        //setupMediaRecorder();
         try {
             createVirtualDisplay();
         }catch (IOException exception){
             exception.printStackTrace();
         }
-        //mediaRecorder.start();
-//        captureSurfacePeriodically(captureSurface);
         return START_STICKY;
     }
 
@@ -1616,13 +1387,9 @@ public class ScreenRecorderService extends Service {
     public void onDestroy() {
         super.onDestroy();
         startedScreenRecording = false;
-        if (mediaRecorder != null){
-            try {
-                mediaRecorder.stop();
-                mediaRecorder.reset();
-            }catch(Exception exception){
-                System.out.println("Media recorder stop failed!");
-            }
+
+        if (captureTexture != null){
+            captureTexture.release();
         }
 
         if (captureVirtualDisplay != null){
