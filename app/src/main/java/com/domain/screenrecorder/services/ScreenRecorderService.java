@@ -115,6 +115,8 @@ public class ScreenRecorderService extends Service {
     Mat yuanMorphKernel;
     Mat testImageMat;
     Mat erosionKernel;
+    Mat rotated;
+
 
     Bitmap outputBitmap;
     Bitmap testBitmap;
@@ -579,6 +581,8 @@ public class ScreenRecorderService extends Service {
             x = 0;
         }
 
+        imagePosX = x;
+
         int y = 30;
         Imgproc.putText(calculationResult, String.valueOf(total), new Point(x, y), font, fontScale, new Scalar(255), thickness);
 
@@ -647,6 +651,9 @@ public class ScreenRecorderService extends Service {
     private Mat prepareImageForDisplay(Mat original) {
         int targetWidth = 368;
         int targetHeight = 448;
+
+        targetWidth = 448;
+        targetHeight = 368;
 //        saveImage(original);
 //        saveImage(bw);
 
@@ -993,10 +1000,10 @@ public class ScreenRecorderService extends Service {
                 answerPositionRect.y += 40;
                 if (numberList.size() == 3){
                     System.out.println("Show answer");
-                    imagePosX = answerPositionRect.x;
-                    imagePosY = answerPositionRect.y;
-                    result.copyTo(canvas.submat(answerPositionRect));
+                    //result.copyTo(canvas.submat(answerPositionRect));
                 }
+
+                imagePosY = answerPositionRect.y;
 
                 newPosY = answerPositionRect.y - (int)textSize.height;
                 Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, newPosY), Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, new Scalar(255), 2);
@@ -1033,6 +1040,9 @@ public class ScreenRecorderService extends Service {
             //saveImage(canvas);
             //saveImage(rgba);
         }
+
+        //Core.rotate(canvas, rotated, Core.ROTATE_90_CLOCKWISE);
+
         return canvas;
     }
 
@@ -1056,7 +1066,7 @@ public class ScreenRecorderService extends Service {
 
         connectionHeader = connectionHeader.concat("\n");
 
-        String calculationResult = "TOTAL: " + this.total + " " + imagePosX + imagePosY + "\n";
+        String calculationResult = "TOTAL: " + this.total + " " + imagePosX + " " + imagePosY + "\n";
 
         System.out.println("Sending header and data!");
         System.out.println("Calculation Result: " + calculationResult);
@@ -1378,6 +1388,8 @@ public class ScreenRecorderService extends Service {
         detectedNumbers = Mat.zeros(448, 368, CvType.CV_8UC1);
 
         yuanMorphKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2));
+
+        rotated = Mat.zeros(368, 448, CvType.CV_8UC1);
 
 
         InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuan8);
