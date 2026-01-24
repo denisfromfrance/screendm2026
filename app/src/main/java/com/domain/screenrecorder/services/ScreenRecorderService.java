@@ -50,6 +50,7 @@ import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -122,6 +123,7 @@ public class ScreenRecorderService extends Service {
 
     Socket socket;
     OutputStream outputStream;
+    InputStream inputStream;
 
     Intent data;
 
@@ -1172,7 +1174,7 @@ public class ScreenRecorderService extends Service {
                             if (gray[0].cols() > 250) {
 
                                 if (Components.getNoteApplication() == Constants.YUAN) {
-                                    gray[0] = gray[0].submat(150, gray[0].rows() - 250, 60, gray[0].cols() - 50).clone();
+                                    gray[0] = gray[0].submat(150, gray[0].rows() - 280, 60, gray[0].cols() - 50).clone();
                                 } else {
                                     gray[0] = gray[0].submat(0, gray[0].rows(), 2, gray[0].cols() - 2).clone();
                                 }
@@ -1282,6 +1284,22 @@ public class ScreenRecorderService extends Service {
         }
     }
 
+    public void startReceiverThread(){
+        new Thread(() -> {
+            try{
+                DataInputStream dis = new DataInputStream(inputStream);
+                while(!socket.isClosed()){
+                    String response = dis.readUTF();
+                    System.out.println("SERVER RESPONSE: " + response);
+                    System.out.println(response.equals("NUMBERS"));
+                    Components.setDoCalculation(response.equals("NUMBERS"));
+                }
+            }catch(IOException e){
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
     public void connectToServer(){
         if (!connectedToServer) {
             networkConnectionHandlerThread = new HandlerThread("Network Connection Handler Thread");
@@ -1298,8 +1316,10 @@ public class ScreenRecorderService extends Service {
                             socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
 //                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                             outputStream = socket.getOutputStream();
+                            inputStream = socket.getInputStream();
                             Components.setConnectionStatus(1);
                             connectedToServer = true;
+                            startReceiverThread();
                             System.out.println("Connected to the server");
                         } catch (IOException exception) {
                             exception.printStackTrace();
