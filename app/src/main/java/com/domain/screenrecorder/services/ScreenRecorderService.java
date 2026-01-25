@@ -1040,7 +1040,7 @@ public class ScreenRecorderService extends Service {
                 Core.rotate(canvas, canvas, Core.ROTATE_90_CLOCKWISE);
             }
 
-            saveImage(canvas);
+            //saveImage(canvas);
             //saveImage(rgba);
         }
 
@@ -1187,7 +1187,7 @@ public class ScreenRecorderService extends Service {
                             if (gray[0].cols() > 250) {
 
                                 if (Components.getNoteApplication() == Constants.YUAN) {
-                                    gray[0] = gray[0].submat(150, gray[0].rows() - 280, 60, gray[0].cols() - 50).clone();
+                                    gray[0] = gray[0].submat(150, gray[0].rows() - 280, 60, gray[0].cols() - 35).clone();
                                 } else {
                                     gray[0] = gray[0].submat(0, gray[0].rows(), 2, gray[0].cols() - 2).clone();
                                 }
@@ -1204,7 +1204,7 @@ public class ScreenRecorderService extends Service {
 //                                    }
 //                                }
 
-                            if (!connectedToServer) {
+                            if (connectedToServer) {
                                 prepareImageAndSend(gray[0]);
 //                                    prepareImageAndSend(gray1[0]);
                             }
