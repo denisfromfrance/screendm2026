@@ -584,7 +584,7 @@ public class ScreenRecorderService extends Service {
         imagePosX = x;
 
         int y = 30;
-        Imgproc.putText(calculationResult, String.valueOf(total), new Point(x, y), font, fontScale, new Scalar(255), thickness);
+        Imgproc.putText(calculationResult, String.valueOf(total), new Point(x, y), font, fontScale, new Scalar(40), thickness);
 
         System.out.println("Numbers: " + Arrays.toString(numberList.toArray()));
         System.out.println("Total: " + total);
@@ -652,8 +652,14 @@ public class ScreenRecorderService extends Service {
         int targetWidth = 368;
         int targetHeight = 448;
 
-        targetWidth = 448;
-        targetHeight = 368;
+        if (Components.getOrientation() == 0) {
+            targetWidth = 448;
+            targetHeight = 368;
+
+            if (detectedNumbers.cols() != targetWidth){
+                detectedNumbers = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC1);
+            }
+        }
 //        saveImage(original);
 //        saveImage(bw);
 
@@ -786,35 +792,22 @@ public class ScreenRecorderService extends Service {
 
 //        saveImage(bw);
 
-        if (Components.getOrientation() == 0){
-            if (outputBitmap.getWidth() == targetWidth && outputBitmap.getHeight() == targetHeight){
-                outputBitmap = Bitmap.createBitmap(448, 368, Bitmap.Config.ARGB_8888);
-            }
+//        if (Components.getOrientation() == 0){
+//            if (canvas.cols() != targetWidth && canvas.rows() != targetHeight) {
+//                canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC1);
+//            }
+//
+//        }else{
+//            if (canvas.cols() != targetHeight && canvas.rows() != targetWidth) {
+//                canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC1);
+//            }
+//        }
 
-            if (canvas.cols() == targetWidth && canvas.rows() == targetHeight) {
-                canvas = Mat.zeros(targetWidth, targetHeight, CvType.CV_8UC1);
-            }
-
-            if (rgba.cols() == targetWidth && rgba.rows() == targetHeight) {
-                rgba = Mat.zeros(targetWidth, targetHeight, CvType.CV_8UC4);
-            }
-
-        }else{
-            if (outputBitmap.getWidth() == targetHeight && outputBitmap.getHeight() == targetWidth){
-                outputBitmap = Bitmap.createBitmap(368, 448, Bitmap.Config.ARGB_8888);
-            }
-
-            if (canvas.cols() == targetHeight && canvas.rows() == targetWidth) {
-                canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC1);
-            }
-
-            if (rgba.cols() == targetHeight && rgba.rows() == targetWidth) {
-                rgba = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC4);
-            }
+        if (canvas.cols() != targetWidth && canvas.rows() != targetHeight) {
+            canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC1);
         }
 
         canvas.setTo(new Scalar(0));
-        rgba.setTo(new Scalar(0, 0, 0, 0));
 
         if (contours.size() > 0) {
 
@@ -952,6 +945,8 @@ public class ScreenRecorderService extends Service {
             Mat targetArea = canvas.submat(roi);
             resized.copyTo(targetArea);
 
+            System.out.println("Placed resized image on canvas.");
+
 //            canvas = smoothImage(canvas);
 
             if (Components.isDoCalculation()){
@@ -996,22 +991,20 @@ public class ScreenRecorderService extends Service {
                 }
 
                 // move answer little bit down
-
                 answerPositionRect.y += 40;
                 if (numberList.size() == 3){
                     System.out.println("Show answer");
-                    //result.copyTo(canvas.submat(answerPositionRect));
+                    Imgproc.threshold(canvas, canvas, 50, 255, Imgproc.THRESH_TOZERO);
+//                    result.setTo(new Scalar(40));
+                    result.copyTo(canvas.submat(answerPositionRect));
                 }
 
                 imagePosY = answerPositionRect.y;
 
                 newPosY = answerPositionRect.y - (int)textSize.height;
                 Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, newPosY), Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, new Scalar(255), 2);
-
                 Core.bitwise_or(detectedNumbers, canvas, canvas);
             }
-
-            Imgproc.cvtColor(canvas, rgba, Imgproc.COLOR_GRAY2RGBA);
 
             if (Components.getNoteApplication() == Constants.YUAN){
                 for (int y = 0; y < 50; y++){
@@ -1037,7 +1030,11 @@ public class ScreenRecorderService extends Service {
                 }
             }
 
-            //saveImage(canvas);
+            if (Components.getOrientation() == 0){
+                Core.rotate(canvas, canvas, Core.ROTATE_90_CLOCKWISE);
+            }
+
+//            saveImage(canvas);
             //saveImage(rgba);
         }
 
@@ -1201,7 +1198,7 @@ public class ScreenRecorderService extends Service {
 //                                    }
 //                                }
 
-                            if (connectedToServer) {
+                            if (!connectedToServer) {
                                 prepareImageAndSend(gray[0]);
 //                                    prepareImageAndSend(gray1[0]);
                             }
@@ -1391,10 +1388,11 @@ public class ScreenRecorderService extends Service {
 
         rotated = Mat.zeros(368, 448, CvType.CV_8UC1);
 
-
         InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuan8);
 
         testBitmap = BitmapFactory.decodeStream(is);
+
+//        Components.setOrientation(0);
 
         startedScreenRecording = true;
 

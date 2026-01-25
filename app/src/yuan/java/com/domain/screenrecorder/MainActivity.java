@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
     ImagePullThread imagePullThread;
 
     Switch detectNumbers;
+    Switch rotate;
 
     private Drawable resize(int drawableRes, double scaleFactor){
         Bitmap original = BitmapFactory.decodeResource(getResources(), drawableRes);
@@ -118,6 +119,15 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 Components.setDoCalculation(b);
+            }
+        });
+
+        rotate = findViewById(R.id.rotate);
+        rotate.setOnCheckedChangeListener((compoundButton, b) -> {
+            if (b){
+                Components.setOrientation(0);
+            }else{
+                Components.setOrientation(1);
             }
         });
 
