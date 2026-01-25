@@ -655,10 +655,14 @@ public class ScreenRecorderService extends Service {
         if (Components.getOrientation() == 0) {
             targetWidth = 448;
             targetHeight = 368;
+        }
 
-            if (detectedNumbers.cols() != targetWidth){
-                detectedNumbers = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC1);
-            }
+        if (detectedNumbers.cols() != targetWidth){
+            detectedNumbers = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC1);
+        }
+
+        if (canvas.cols() != targetWidth) {
+            canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC1);
         }
 //        saveImage(original);
 //        saveImage(bw);
@@ -802,10 +806,6 @@ public class ScreenRecorderService extends Service {
 //                canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC1);
 //            }
 //        }
-
-        if (canvas.cols() != targetWidth && canvas.rows() != targetHeight) {
-            canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC1);
-        }
 
         canvas.setTo(new Scalar(0));
 
@@ -1002,6 +1002,7 @@ public class ScreenRecorderService extends Service {
                 imagePosY = answerPositionRect.y;
 
                 newPosY = answerPositionRect.y - (int)textSize.height;
+                System.out.println("Detected Numbers Image Size: " + detectedNumbers.cols() + "x" + detectedNumbers.rows());
                 Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, newPosY), Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, new Scalar(255), 2);
                 Core.bitwise_or(detectedNumbers, canvas, canvas);
             }
@@ -1198,7 +1199,7 @@ public class ScreenRecorderService extends Service {
 //                                    }
 //                                }
 
-                            if (!connectedToServer) {
+                            if (connectedToServer) {
                                 prepareImageAndSend(gray[0]);
 //                                    prepareImageAndSend(gray1[0]);
                             }
