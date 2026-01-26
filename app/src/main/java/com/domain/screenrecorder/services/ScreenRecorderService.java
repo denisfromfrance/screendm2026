@@ -117,7 +117,6 @@ public class ScreenRecorderService extends Service {
     Mat erosionKernel;
     Mat rotated;
 
-
     Bitmap outputBitmap;
     Bitmap testBitmap;
 
@@ -134,6 +133,7 @@ public class ScreenRecorderService extends Service {
 
     private int imagePosX = 0;
     private int imagePosY = 0;
+    private int numberOfLines = 0;
 
 
     private boolean isBlack(Mat input){
@@ -523,6 +523,8 @@ public class ScreenRecorderService extends Service {
         if (boundingBoxes.size() == 5) {
             boundingBoxes.remove(boundingBoxes.size() - 1);
         }
+
+        numberOfLines = boundingBoxes.size();
         System.out.println("Lines found: " + boundingBoxes.size());
 
 //        saveImage(bw.submat(boundingBoxes.get(0)));
@@ -951,54 +953,63 @@ public class ScreenRecorderService extends Service {
 
 //            canvas = smoothImage(canvas);
 
-            boolean isCalculationTrick = numberList.size() > 1;
+            if (Components.isDoCalculation()){
 
-            Mat result = extractLines(canvas);
+                Mat result = extractLines(canvas);
 
-            Size textSize;
-            int centerX;
-            if (numberList.size()> 0) {
-                if (latestDisplayedNumber != numberList.get(numberList.size() - 1)) {
-                    latestDisplayedNumber = numberList.get(numberList.size() - 1);
-                    currentDisplayingNumber = String.valueOf(latestDisplayedNumber);
-                    //new Handler(Looper.getMainLooper()).postDelayed(() -> currentDisplayingNumber = "", Components.getDelay() * 1000L);
+                boolean isCalculationTrick = numberList.size() > 1 && numberOfLines <= 4;
+                System.out.println("Number of number lines: " + numberOfLines);
+
+                Size textSize;
+                int centerX;
+                if (numberList.size()> 0) {
+                    if (latestDisplayedNumber != numberList.get(numberList.size() - 1)) {
+                        latestDisplayedNumber = numberList.get(numberList.size() - 1);
+                        currentDisplayingNumber = String.valueOf(latestDisplayedNumber);
+                        //new Handler(Looper.getMainLooper()).postDelayed(() -> currentDisplayingNumber = "", Components.getDelay() * 1000L);
+                    }
                 }
-            }
 
-            textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, 2, null);
-            centerX = (int)((canvas.cols() - textSize.width) / 2);
-            detectedNumbers.setTo(new Scalar(0));
+                textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, 2, null);
+                centerX = (int)((canvas.cols() - textSize.width) / 2);
+                detectedNumbers.setTo(new Scalar(0));
 
-            canvas.setTo(new Scalar(0));
-            roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
-            targetArea = canvas.submat(roi);
-            resized.copyTo(targetArea);
+                canvas.setTo(new Scalar(0));
+                roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
+                targetArea = canvas.submat(roi);
+                resized.copyTo(targetArea);
 
-            org.opencv.core.Rect answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows() + ((int)textSize.height), result.cols(), result.rows());
-            if (newPosY >= 0 && result.cols() <= canvas.cols() && newPosY + resized.rows() + result.rows() + ((int)textSize.height) <= canvas.rows()){
-                //result.copyTo(canvas.submat(answerPositionRect));
-                System.out.println("total is displaying..");
-            }else{
-                if (newPosY > 0){
-                    int pointsToReduce = (newPosY + resized.rows() + ((int)textSize.height)) + result.rows() - targetHeight;
-                    if (newPosY >= pointsToReduce){
-                        newPosY -= pointsToReduce;
+                org.opencv.core.Rect answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows() + ((int)textSize.height), result.cols(), result.rows());
+                if (newPosY >= 0 && result.cols() <= canvas.cols() && newPosY + resized.rows() + result.rows() + ((int)textSize.height) <= canvas.rows()){
+                    //result.copyTo(canvas.submat(answerPositionRect));
+                    System.out.println("total is displaying..");
+                }else{
+                    if (newPosY > 0){
+                        int pointsToReduce = (newPosY + resized.rows() + ((int)textSize.height)) + result.rows() - targetHeight;
+                        if (newPosY >= pointsToReduce){
+                            newPosY -= pointsToReduce;
 
-                        answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows() + ((int)textSize.height), result.cols(), detectedNumbers.rows());
+                            answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows() + ((int)textSize.height), result.cols(), result.rows());
+                        }else{
+                            answerPositionRect = new org.opencv.core.Rect(0, resized.rows() - (((int)textSize.height) + result.rows()), result.cols(), result.rows());
+                        }
                     }else{
                         answerPositionRect = new org.opencv.core.Rect(0, resized.rows() - (((int)textSize.height) + result.rows()), result.cols(), result.rows());
                     }
-                }else{
-                    answerPositionRect = new org.opencv.core.Rect(0, resized.rows() - (((int)textSize.height) + result.rows()), result.cols(), result.rows());
                 }
-            }
 
-            if (isCalculationTrick) {
+//            if (isCalculationTrick) {
                 // move answer little bit down
                 answerPositionRect.y += 40;
+                if (answerPositionRect.y + result.rows() + textSize.height > targetHeight){
+                    answerPositionRect.y = targetHeight - (result.rows() + (int)textSize.height);
+                }
                 if (numberList.size() == 3) {
                     System.out.println("Show answer");
                     Imgproc.threshold(canvas, canvas, 50, 255, Imgproc.THRESH_TOZERO);
+                    System.out.println("canvas size: " + canvas.cols() +  'x' + canvas.rows());
+                    System.out.println("result size: " + result.cols() +  'x' + result.rows());
+                    System.out.println("answer position data: " + answerPositionRect.width +  'x' + answerPositionRect.height + " | " + "X: " + answerPositionRect.x + " Y:" + answerPositionRect.y);
 //                    result.setTo(new Scalar(40));
                     result.copyTo(canvas.submat(answerPositionRect));
                 }
@@ -1089,7 +1100,7 @@ public class ScreenRecorderService extends Service {
 
                 //outputStream.write(bytes);
                 //outputStream.flush();
-                
+
 //                outputStream.write("\n".getBytes(StandardCharsets.US_ASCII))
 //                outputStream.flush();
 
