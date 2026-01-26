@@ -211,7 +211,7 @@ public class ScreenRecorderService extends Service {
             }
 
 
-            org.opencv.core.Rect center = new org.opencv.core.Rect(
+            Rect center = new Rect(
                     0,
                     0,
                     src.cols(),
@@ -239,6 +239,7 @@ public class ScreenRecorderService extends Service {
         Imgproc.findContours(dilatedOriginalMat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
         if (contours.size() > 0) {
+            // Remove unnecessary parts of the image to extract only the writing area
             System.out.println("####### Found more than 1 contour");
 
             contours.sort((o1, o2) -> {
@@ -661,6 +662,10 @@ public class ScreenRecorderService extends Service {
             targetHeight = 368;
         }
 
+        /*
+         *
+         * Inverse image size automatically if the orientation change
+         * */
         if (detectedNumbers.cols() != targetWidth){
             detectedNumbers = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC1);
         }
@@ -668,16 +673,12 @@ public class ScreenRecorderService extends Service {
         if (canvas.cols() != targetWidth) {
             canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC1);
         }
+
 //        saveImage(original);
-//        saveImage(bw);
 
         Mat bw = convertToBlackAndWhite(original);
 
 //        saveImage(bw);
-
-//        bw = bw.submat(50, bw.rows() - 100, 50, bw.cols() - 100).clone();
-
-//        Imgproc.threshold(bw, bw, 250, 255, bw.type());
 
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 20));
         if (mainDilatedMat == null){
@@ -716,12 +717,16 @@ public class ScreenRecorderService extends Service {
         Imgproc.findContours(dilatedSubmat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
         System.out.println("Contours Count: " + contours.size());
 
+        // sort contours along the Y axis
         contours.sort((o1, o2) -> {
             Rect rect1 = Imgproc.boundingRect(o1);
             Rect rect2 = Imgproc.boundingRect(o2);
             return Integer.compare(rect1.y, rect2.y);
         });
 
+
+
+        // Extract the area of the content
         Map<MatOfPoint, Integer[]> subMats = new LinkedHashMap<>();
 
         int groupImageHeight;
@@ -794,29 +799,18 @@ public class ScreenRecorderService extends Service {
                 }
                 subMats.put(c, new Integer[]{(imagePosX) + subtractingAmountX, (imagePosY - yStart), imageWidth, imageHeight});
             }
+
             System.out.println("Image PosX: " + imagePosX);
             System.out.println("Image PosY: " + imagePosY);
         }
 
 //        saveImage(bw);
 
-//        if (Components.getOrientation() == 0){
-//            if (canvas.cols() != targetWidth && canvas.rows() != targetHeight) {
-//                canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC1);
-//            }
-//
-//        }else{
-//            if (canvas.cols() != targetHeight && canvas.rows() != targetWidth) {
-//                canvas = Mat.zeros(targetHeight, targetWidth, CvType.CV_8UC1);
-//            }
-//        }
-
         canvas.setTo(new Scalar(0));
 
         if (contours.size() > 0) {
 
             groupImageWidth = (xEnd - xStart);
-
             groupImageHeight = (yEnd - yStart) + (subtractingAmountY * 2);
 
 //            Imgproc.rectangle(bw, new org.opencv.core.Rect(xStart, yStart, groupImageWidth, groupImageHeight), new Scalar(255), 2);
@@ -838,7 +832,6 @@ public class ScreenRecorderService extends Service {
             for (Map.Entry<MatOfPoint, Integer[]> content : subMats.entrySet()){
                 org.opencv.core.Rect cropRoi = Imgproc.boundingRect(content.getKey());
                 Integer[] imageData = content.getValue();
-
 
 //                cropRoi.x += 15;
                 cropRoi.y += (subtractingAmountY);
@@ -928,12 +921,7 @@ public class ScreenRecorderService extends Service {
 //            saveImage(bw);
 //            saveImage(cropped);
             System.out.println("Transforming image...");
-            TransformedImage transformedImage;
-            if (Components.getOrientation() == 0){
-                transformedImage = transformImageForDisplay(cropped, 448, 368);
-            }else{
-                transformedImage = transformImageForDisplay(cropped, targetWidth, targetHeight);
-            }
+            TransformedImage transformedImage = transformImageForDisplay(cropped, targetWidth, targetHeight);
 
             int newPosX = transformedImage.getNewPosX();
             int newPosY = transformedImage.getNewPosY();
@@ -946,6 +934,7 @@ public class ScreenRecorderService extends Service {
             }
 //            saveImage(resized);
             org.opencv.core.Rect roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
+            canvas.setTo(new Scalar(0));
             Mat targetArea = canvas.submat(roi);
             resized.copyTo(targetArea);
 
@@ -960,9 +949,7 @@ public class ScreenRecorderService extends Service {
                 boolean isCalculationTrick = numberList.size() > 1 && numberOfLines <= 4;
                 System.out.println("Number of number lines: " + numberOfLines);
 
-                Size textSize;
-                int centerX;
-                if (numberList.size()> 0) {
+                if (numberList.size() > 0) {
                     if (latestDisplayedNumber != numberList.get(numberList.size() - 1)) {
                         latestDisplayedNumber = numberList.get(numberList.size() - 1);
                         currentDisplayingNumber = String.valueOf(latestDisplayedNumber);
@@ -970,60 +957,49 @@ public class ScreenRecorderService extends Service {
                     }
                 }
 
-                textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, 2, null);
-                centerX = (int)((canvas.cols() - textSize.width) / 2);
+                Size textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, 2, null);
+                int textWidth = (int)textSize.width;
+                int textHeight = (int)textSize.height;
+                int centerX = (canvas.cols() - textWidth) / 2;
+
                 detectedNumbers.setTo(new Scalar(0));
 
-                canvas.setTo(new Scalar(0));
-                roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
-                targetArea = canvas.submat(roi);
-                resized.copyTo(targetArea);
+//                canvas.setTo(new Scalar(0));
+//                roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
+//                targetArea = canvas.submat(roi);
+//                resized.copyTo(targetArea);
 
-                org.opencv.core.Rect answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows() + ((int)textSize.height), result.cols(), result.rows());
-                if (newPosY >= 0 && result.cols() <= canvas.cols() && newPosY + resized.rows() + result.rows() + ((int)textSize.height) <= canvas.rows()){
-                    //result.copyTo(canvas.submat(answerPositionRect));
-                    System.out.println("total is displaying..");
-                }else{
-                    if (newPosY > 0){
-                        int pointsToReduce = (newPosY + resized.rows() + ((int)textSize.height)) + result.rows() - targetHeight;
-                        if (newPosY >= pointsToReduce){
-                            newPosY -= pointsToReduce;
+                /*
+                calculate number displaying position along the y axis and 20 is the space between the image and numbers displaying
+                 */
+                int numbersDisplayingPosY = newPosY + resized.rows() + 15;
 
-                            answerPositionRect = new org.opencv.core.Rect(0, newPosY + resized.rows() + ((int)textSize.height), result.cols(), result.rows());
-                        }else{
-                            answerPositionRect = new org.opencv.core.Rect(0, resized.rows() - (((int)textSize.height) + result.rows()), result.cols(), result.rows());
-                        }
-                    }else{
-                        answerPositionRect = new org.opencv.core.Rect(0, resized.rows() - (((int)textSize.height) + result.rows()), result.cols(), result.rows());
-                    }
+                if (numbersDisplayingPosY + textHeight + result.rows() >= targetHeight){
+                    numbersDisplayingPosY = targetHeight - (textHeight + result.rows());
                 }
 
-//            if (isCalculationTrick) {
-                // move answer little bit down
-                answerPositionRect.y += 40;
-                if (answerPositionRect.y + result.rows() + textSize.height > targetHeight){
-                    answerPositionRect.y = targetHeight - (result.rows() + (int)textSize.height);
-                }
+                Rect answerPositionRect = new Rect(0, numbersDisplayingPosY, result.cols(), textHeight + result.rows());
+
+                System.out.println("Detected Numbers Image Size: " + detectedNumbers.cols() + "x" + detectedNumbers.rows());
+                Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, answerPositionRect.y), Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, new Scalar(255), 2);
+                Core.bitwise_or(detectedNumbers, canvas, canvas);
+
+                // add text height to get the Y position for the answer. set answer position rect height to result's height
+                answerPositionRect.y += textHeight;
+                answerPositionRect.height = result.rows();
                 if (numberList.size() == 3) {
                     System.out.println("Show answer");
                     Imgproc.threshold(canvas, canvas, 50, 255, Imgproc.THRESH_TOZERO);
                     System.out.println("canvas size: " + canvas.cols() +  'x' + canvas.rows());
                     System.out.println("result size: " + result.cols() +  'x' + result.rows());
                     System.out.println("answer position data: " + answerPositionRect.width +  'x' + answerPositionRect.height + " | " + "X: " + answerPositionRect.x + " Y:" + answerPositionRect.y);
-//                    result.setTo(new Scalar(40));
                     result.copyTo(canvas.submat(answerPositionRect));
                 }
 
-                imagePosY = answerPositionRect.y;
-
-                newPosY = answerPositionRect.y - (int) textSize.height;
-                System.out.println("Detected Numbers Image Size: " + detectedNumbers.cols() + "x" + detectedNumbers.rows());
-                Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, newPosY), Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, new Scalar(255), 2);
-                Core.bitwise_or(detectedNumbers, canvas, canvas);
             }
 
 
-            if (Components.getNoteApplication() == Constants.YUAN){
+            if (Components.getNoteApplication() == Constants.YUAN && Components.getOrientation() == 1){
                 for (int y = 0; y < 50; y++){
                     Mat row = canvas.row(y);
                     MatOfDouble mean = new MatOfDouble();
