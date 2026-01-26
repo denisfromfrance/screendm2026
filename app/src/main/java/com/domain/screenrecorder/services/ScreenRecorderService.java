@@ -117,7 +117,6 @@ public class ScreenRecorderService extends Service {
     Mat erosionKernel;
     Mat rotated;
 
-
     Bitmap outputBitmap;
     Bitmap testBitmap;
 
@@ -134,6 +133,7 @@ public class ScreenRecorderService extends Service {
 
     private int imagePosX = 0;
     private int imagePosY = 0;
+    private int numberOfLines = 0;
 
 
     private boolean isBlack(Mat input){
@@ -523,6 +523,8 @@ public class ScreenRecorderService extends Service {
         if (boundingBoxes.size() == 5) {
             boundingBoxes.remove(boundingBoxes.size() - 1);
         }
+
+        numberOfLines = boundingBoxes.size();
         System.out.println("Lines found: " + boundingBoxes.size());
 
 //        saveImage(bw.submat(boundingBoxes.get(0)));
@@ -951,7 +953,9 @@ public class ScreenRecorderService extends Service {
 
 //            canvas = smoothImage(canvas);
 
-            boolean isCalculationTrick = numberList.size() > 1;
+            boolean isCalculationTrick = numberList.size() > 1 && numberOfLines <= 3;
+
+//            if (Components.isDoCalculation()){
 
             Mat result = extractLines(canvas);
 
@@ -1040,7 +1044,7 @@ public class ScreenRecorderService extends Service {
                 Core.rotate(canvas, canvas, Core.ROTATE_90_CLOCKWISE);
             }
 
-            //saveImage(canvas);
+            saveImage(canvas);
             //saveImage(rgba);
         }
 
@@ -1204,7 +1208,7 @@ public class ScreenRecorderService extends Service {
 //                                    }
 //                                }
 
-                            if (connectedToServer) {
+                            if (!connectedToServer) {
                                 prepareImageAndSend(gray[0]);
 //                                    prepareImageAndSend(gray1[0]);
                             }
@@ -1326,8 +1330,8 @@ public class ScreenRecorderService extends Service {
                         try {
                             System.out.println("Trying to connect to the server...");
                             socket = new Socket();
-                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
-//                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
+//                            socket.connect(new InetSocketAddress("192.168.4.1", 5000), 5000);
+                            socket.connect(new InetSocketAddress("192.168.43.133", 5000), 5000);
                             outputStream = socket.getOutputStream();
                             inputStream = socket.getInputStream();
                             Components.setConnectionStatus(1);
