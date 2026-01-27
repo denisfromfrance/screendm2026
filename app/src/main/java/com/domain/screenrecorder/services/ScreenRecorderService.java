@@ -972,7 +972,7 @@ public class ScreenRecorderService extends Service {
                 /*
                 calculate number displaying position along the y axis and 20 is the space between the image and numbers displaying
                  */
-                int numbersDisplayingPosY = newPosY + resized.rows() + 15;
+                int numbersDisplayingPosY = newPosY + resized.rows() + 25;
 
                 if (numbersDisplayingPosY + textHeight + result.rows() >= targetHeight){
                     numbersDisplayingPosY = targetHeight - (textHeight + result.rows());
