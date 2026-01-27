@@ -141,6 +141,11 @@ public class ScreenRecorderService extends Service {
         return meanVal < 127;
     }
 
+    private boolean isPureBlack(Mat input){
+        double meanVal = Core.mean(input).val[0];
+        return meanVal < 2;
+    }
+
 
     private Mat convertToBlackAndWhite(Mat mat){
         Mat src = mat.clone();
@@ -155,9 +160,44 @@ public class ScreenRecorderService extends Service {
 
 
         if (Components.getNoteApplication() == Constants.YUAN){
-            Imgproc.threshold(src, src, 5, 255, Imgproc.THRESH_BINARY);
+            Imgproc.threshold(src, src, 200, 255, Imgproc.THRESH_BINARY);
             Imgproc.rectangle(src, new Rect(0, 0, src.cols(), 50), Scalar.all(255.0D), -1);
+            Imgproc.rectangle(src, new Rect(0, src.rows() - 55, src.cols(), 50), Scalar.all(0), -1);
+//            Imgproc.threshold(src, src, 5, 255, Imgproc.THRESH_BINARY);
+//            saveImage(src);
+
+            int imageHeight = src.rows();
+
+            int midY = src.rows() / 2;
+            int startY = 0;
+            int endY = 0;
+            for (int i = midY; i > 0; i--){
+                boolean isStartBlack = isPureBlack(src.row(i));
+                if (isStartBlack && startY == 0){
+                    startY = i;
+                }
+
+                boolean isEndBlack = isPureBlack(src.row(imageHeight - i));
+                if (isEndBlack && endY == 0){
+                    endY = imageHeight - i;
+                }
+            }
+
+            // add 2 pixels to start Y coordinate to miss the black line
+            startY += 2;
+
+            // remove page number
+            endY -= 50;
+
+            System.out.println("Start Y: " + startY);
+            System.out.println("End Y: " + endY);
+
+            src = mat.submat(new Rect(0, startY, src.cols(), endY - startY)).clone();
+
+//            Imgproc.rectangle(src, new Rect(0, startY + 5, src.cols(), 50), Scalar.all(0), -1);
+//            Imgproc.rectangle(src, new Rect(0, endY - 55, src.cols(), 50), Scalar.all(0), -1);
             Imgproc.morphologyEx(src, src, Imgproc.MORPH_CLOSE, yuanMorphKernel);
+//            saveImage(src);
 
 //            Imgproc.blur(src, src, new Size(10, 10));
 
@@ -232,7 +272,7 @@ public class ScreenRecorderService extends Service {
 
         Imgproc.dilate(src, dilatedOriginalMat, writingAreaFilterKernel);
 //        saveImage(src);
-        //saveImage(dilatedOriginalMat);
+//        saveImage(dilatedOriginalMat);
 
         List<MatOfPoint> contours = new ArrayList<>();
         Mat hierarchy = new Mat();
@@ -272,7 +312,7 @@ public class ScreenRecorderService extends Service {
 
                 boundingBox = new Rect(0, startY, mat.cols(), endY - startY);
 
-                src = mat.submat(boundingBox);
+                src = src.submat(boundingBox);
 //                saveImage(src);
             }
 
@@ -1027,7 +1067,7 @@ public class ScreenRecorderService extends Service {
                 Core.rotate(canvas, canvas, Core.ROTATE_90_CLOCKWISE);
             }
 
-            //saveImage(canvas);
+//            saveImage(canvas);
             //saveImage(rgba);
         }
 
@@ -1180,20 +1220,20 @@ public class ScreenRecorderService extends Service {
                                 }
                             }
 
-//                                Utils.bitmapToMat(testBitmap, testImageMat);
-//                                final Mat[] gray1 = {new Mat()};
-//                                Imgproc.cvtColor(testImageMat, gray1[0], Imgproc.COLOR_RGBA2GRAY);
-//                                if (gray1[0].cols() > 150){
-//                                    if (Components.getNoteApplication() == Constants.YUAN){
-//                                        gray1[0] = gray1[0].submat(150, gray1[0].rows() - 150, 5, gray1[0].cols() - 5).clone();
-//                                    }else {
-//                                        gray1[0] = gray1[0].submat(0, gray1[0].rows(), 5, gray1[0].cols() - 5).clone();
-//                                    }
+//                            Utils.bitmapToMat(testBitmap, testImageMat);
+//                            final Mat[] gray1 = {new Mat()};
+//                            Imgproc.cvtColor(testImageMat, gray1[0], Imgproc.COLOR_RGBA2GRAY);
+//                            if (gray1[0].cols() > 150){
+//                                if (Components.getNoteApplication() == Constants.YUAN){
+//                                    gray1[0] = gray1[0].submat(150, gray1[0].rows() - 280, 60, gray1[0].cols() - 35).clone();
+//                                }else {
+//                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 5, gray1[0].cols() - 5).clone();
 //                                }
+//                            }
 
                             if (connectedToServer) {
                                 prepareImageAndSend(gray[0]);
-//                                    prepareImageAndSend(gray1[0]);
+//                                prepareImageAndSend(gray1[0]);
                             }
                         }
                         latestImage.close();
@@ -1381,7 +1421,7 @@ public class ScreenRecorderService extends Service {
 
         rotated = Mat.zeros(368, 448, CvType.CV_8UC1);
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuan8);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuan9);
 
         testBitmap = BitmapFactory.decodeStream(is);
 
