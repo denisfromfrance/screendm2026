@@ -116,6 +116,7 @@ public class ScreenRecorderService extends Service {
     Mat testImageMat;
     Mat erosionKernel;
     Mat rotated;
+    Mat whiteRect;
 
     Bitmap outputBitmap;
     Bitmap testBitmap;
@@ -158,10 +159,16 @@ public class ScreenRecorderService extends Service {
             dilatedOriginalMat = Mat.zeros(src.rows(), src.cols(), CvType.CV_8UC1);
         }
 
+        if (whiteRect == null){
+            whiteRect = Mat.ones(src.rows(), src.cols(), CvType.CV_8UC1);
+            whiteRect.setTo(new Scalar(255));
+        }
+
 
         if (Components.getNoteApplication() == Constants.YUAN){
             Imgproc.threshold(src, src, 200, 255, Imgproc.THRESH_BINARY);
-            Imgproc.rectangle(src, new Rect(0, 0, src.cols(), 50), Scalar.all(255.0D), -1);
+            Core.bitwise_and(src, whiteRect, src);
+//            Imgproc.rectangle(src, new Rect(0, 0, src.cols(), 50), Scalar.all(255.0D), -1);
             Imgproc.rectangle(src, new Rect(0, src.rows() - 55, src.cols(), 50), Scalar.all(0), -1);
 //            Imgproc.threshold(src, src, 5, 255, Imgproc.THRESH_BINARY);
 //            saveImage(src);
@@ -187,19 +194,47 @@ public class ScreenRecorderService extends Service {
             startY += 2;
 
             // remove page number
-            endY -= 50;
+            if (endY - 50 < startY){
+                endY = startY + 50;
+            }else {
+                endY -= 50;
+            }
 
+            System.out.println("Extracting the column range");
+            int imageWidth = src.cols();
+            int midX = imageWidth / 2;
+            int startX = 0;
+            int endX = 0;
+            for (int x = 0; x < midX; x++){
+                boolean isStartBlack = isPureBlack(src.col(x));
+                boolean isEndBlack = isPureBlack(src.col((imageWidth - 1) - x));
+
+                if (!isStartBlack && startX == 0){
+                    startX = x;
+                    startX += 2;
+                }
+
+                if (!isEndBlack && endX == 0){
+                    endX = imageWidth - x;
+                    endX -= 2;
+                }
+            }
+
+            // prevent end x getting 0
+            if (endX == 0){
+                endX = startX + 50;
+            }
+
+            System.out.println("Start X: " + startX);
             System.out.println("Start Y: " + startY);
+            System.out.println("End X: " + endX);
             System.out.println("End Y: " + endY);
 
-            src = mat.submat(new Rect(0, startY, src.cols(), endY - startY)).clone();
+            src = mat.submat(new Rect(startX, startY, endX - startX, endY - startY)).clone();
+//            Imgproc.threshold(src, src, 200, 255, Imgproc.THRESH_BINARY);
+//            Imgproc.morphologyEx(src, src, Imgproc.MORPH_CLOSE, yuanMorphKernel);
 
-//            Imgproc.rectangle(src, new Rect(0, startY + 5, src.cols(), 50), Scalar.all(0), -1);
-//            Imgproc.rectangle(src, new Rect(0, endY - 55, src.cols(), 50), Scalar.all(0), -1);
-            Imgproc.morphologyEx(src, src, Imgproc.MORPH_CLOSE, yuanMorphKernel);
 //            saveImage(src);
-
-//            Imgproc.blur(src, src, new Size(10, 10));
 
             if (!isBlack(src)){
                 Core.bitwise_not(src, src);
@@ -310,9 +345,9 @@ public class ScreenRecorderService extends Service {
                     endY = endBBox.y + endBBox.height;
                 }
 
-                boundingBox = new Rect(0, startY, mat.cols(), endY - startY);
+                boundingBox = new Rect(0, startY, src.cols() - 10, endY - startY);
 
-                src = src.submat(boundingBox);
+                src = src.submat(boundingBox).clone();
 //                saveImage(src);
             }
 
@@ -345,49 +380,49 @@ public class ScreenRecorderService extends Service {
                 System.out.println("Extracted content when iarvel application is selected.");
             }
 
-            int imageWidth = src.cols();
-            int leftStripeEnd = 0;
-
+            if (Components.getNoteApplication() != Constants.YUAN) {
+                int imageWidth = src.cols();
+                int leftStripeEnd = 0;
 //            saveImage(src);
+                System.out.println("Removing left blank area...");
+                for (int x = 0; x < imageWidth / 4; x++) {
+                    Mat col = src.col(x);
+                    MatOfDouble mean = new MatOfDouble();
+                    MatOfDouble std = new MatOfDouble();
 
-            System.out.println("Removing left blank area...");
-            for (int x = 0; x < imageWidth / 4; x++){
-                Mat col = src.col(x);
-                MatOfDouble mean = new MatOfDouble();
-                MatOfDouble std = new MatOfDouble();
-
-                Core.meanStdDev(col, mean, std);
+                    Core.meanStdDev(col, mean, std);
 //                System.out.println("Standard Deviation: " + std.toArray()[0]);
-                if (std.toArray()[0] == 0){
-                    leftStripeEnd = x;
+                    if (std.toArray()[0] == 0) {
+                        leftStripeEnd = x;
 //                    src.colRange(x, x+1).setTo(new Scalar(255, 255, 255));
+                    }
                 }
-            }
 
-            if (leftStripeEnd < 100) {
-                src.colRange(0, leftStripeEnd + 3).setTo(new Scalar(255, 255, 255));
-            }
+                if (leftStripeEnd < 100 && Components.getNoteApplication() != Constants.YUAN) {
+                    src.colRange(0, leftStripeEnd + 3).setTo(new Scalar(255, 255, 255));
+                }
 //            saveImage(src);
 
-            System.out.println("Removing right blank area...");
-            int x1 = 0;
-            int x2;
-            for (int x = imageWidth - 1; x > imageWidth - 80; x--){
-                Mat col = src.col(x);
-                MatOfDouble mean = new MatOfDouble();
-                MatOfDouble std = new MatOfDouble();
+                System.out.println("Removing right blank area...");
+                int x1 = 0;
+                int x2;
+                for (int x = imageWidth - 1; x > imageWidth - 80; x--) {
+                    Mat col = src.col(x);
+                    MatOfDouble mean = new MatOfDouble();
+                    MatOfDouble std = new MatOfDouble();
 
-                Core.meanStdDev(col, mean, std);
-                System.out.println("Standard Deviation: " + std.toArray()[0]);
-                if (std.toArray()[0] == 0){
-                    x1 = x;
+                    Core.meanStdDev(col, mean, std);
+                    System.out.println("Standard Deviation: " + std.toArray()[0]);
+                    if (std.toArray()[0] == 0) {
+                        x1 = x;
+                    }
                 }
-            }
 
-            x2 = imageWidth - 1;
+                x2 = imageWidth - 1;
 
-            if (x1 < x2 && x1 > imageWidth - 150){
-                src.colRange(x1, x2).setTo(new Scalar(255));
+                if (x1 < x2 && x1 > imageWidth - 150) {
+                    src.colRange(x1, x2).setTo(new Scalar(255));
+                }
             }
 
 //            saveImage(src);
@@ -696,6 +731,8 @@ public class ScreenRecorderService extends Service {
     private Mat prepareImageForDisplay(Mat original) {
         int targetWidth = 368;
         int targetHeight = 448;
+
+        System.out.println("Image received!");
 
         if (Components.getOrientation() == 0) {
             targetWidth = 448;
@@ -1067,7 +1104,7 @@ public class ScreenRecorderService extends Service {
                 Core.rotate(canvas, canvas, Core.ROTATE_90_CLOCKWISE);
             }
 
-//            saveImage(canvas);
+            saveImage(canvas);
             //saveImage(rgba);
         }
 
@@ -1188,12 +1225,12 @@ public class ScreenRecorderService extends Service {
         System.out.println("Display height: " + HEIGHT);
         System.out.println("Display DPI: " + DPI);
 
-
         testImageMat = new Mat(testBitmap.getHeight(), testBitmap.getWidth(), CvType.CV_8UC4);
 
         imageReader = ImageReader.newInstance(WIDTH, HEIGHT, PixelFormat.RGBA_8888, 2);
         Mat imageMat = Mat.zeros(imageReader.getHeight(), imageReader.getWidth(), CvType.CV_8UC4);
         final Mat[] gray = {new Mat()};
+        final Mat[] gray1 = {new Mat()};
 
         Bitmap bitmap = Bitmap.createBitmap(imageReader.getWidth(), imageReader.getHeight(), Bitmap.Config.ARGB_8888);
 
@@ -1209,31 +1246,41 @@ public class ScreenRecorderService extends Service {
                 if (latestImage != null) {
                     PixelCopy.request(imageReader.getSurface(), bitmap, copyResult -> {
                         if (copyResult == PixelCopy.SUCCESS) {
-                            Utils.bitmapToMat(bitmap, imageMat);
-                            Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
-                            if (gray[0].cols() > 250) {
+                            boolean debug = false;
 
-                                if (Components.getNoteApplication() == Constants.YUAN) {
-                                    gray[0] = gray[0].submat(150, gray[0].rows() - 280, 60, gray[0].cols() - 35).clone();
-                                } else {
-                                    gray[0] = gray[0].submat(0, gray[0].rows(), 2, gray[0].cols() - 2).clone();
+                            if (!debug) {
+                                Utils.bitmapToMat(bitmap, imageMat);
+                                Imgproc.cvtColor(imageMat, gray[0], Imgproc.COLOR_RGBA2GRAY);
+                                if (gray[0].cols() > 250) {
+                                    if (Components.getNoteApplication() == Constants.YUAN) {
+                                        System.out.println("Passing image for processing...");
+                                        System.out.println(gray[0].cols());
+                                        System.out.println(gray[0].rows());
+                                        gray[0] = gray[0].submat(150, gray[0].rows() - 280, 35, gray[0].cols() - 35).clone();
+                                    } else {
+                                        gray[0] = gray[0].submat(0, gray[0].rows(), 2, gray[0].cols() - 2).clone();
+                                    }
+                                }
+                            }else {
+                                Utils.bitmapToMat(testBitmap, testImageMat);
+                                Imgproc.cvtColor(testImageMat, gray1[0], Imgproc.COLOR_RGBA2GRAY);
+                                if (gray1[0].cols() > 150) {
+                                    if (Components.getNoteApplication() == Constants.YUAN) {
+                                        gray1[0] = gray1[0].submat(150, gray1[0].rows() - 280, 60, gray1[0].cols() - 35).clone();
+                                    } else {
+                                        gray1[0] = gray1[0].submat(0, gray1[0].rows(), 5, gray1[0].cols() - 5).clone();
+                                    }
                                 }
                             }
 
-//                            Utils.bitmapToMat(testBitmap, testImageMat);
-//                            final Mat[] gray1 = {new Mat()};
-//                            Imgproc.cvtColor(testImageMat, gray1[0], Imgproc.COLOR_RGBA2GRAY);
-//                            if (gray1[0].cols() > 150){
-//                                if (Components.getNoteApplication() == Constants.YUAN){
-//                                    gray1[0] = gray1[0].submat(150, gray1[0].rows() - 280, 60, gray1[0].cols() - 35).clone();
-//                                }else {
-//                                    gray1[0] = gray1[0].submat(0, gray1[0].rows(), 5, gray1[0].cols() - 5).clone();
-//                                }
-//                            }
-
-                            if (connectedToServer) {
-                                prepareImageAndSend(gray[0]);
-//                                prepareImageAndSend(gray1[0]);
+                            if (!debug) {
+                                if (!connectedToServer) {
+                                    prepareImageAndSend(gray[0]);
+                                }
+                            }else{
+                                if (!connectedToServer) {
+                                    prepareImageAndSend(gray1[0]);
+                                }
                             }
                         }
                         latestImage.close();
@@ -1421,7 +1468,7 @@ public class ScreenRecorderService extends Service {
 
         rotated = Mat.zeros(368, 448, CvType.CV_8UC1);
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuan9);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuan12);
 
         testBitmap = BitmapFactory.decodeStream(is);
 
