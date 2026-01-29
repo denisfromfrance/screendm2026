@@ -477,6 +477,7 @@ public class ScreenRecorderService extends Service {
             Imgproc.dilate(blackAndWhiteMat, dilated, charExtractingKernel);
         }else{
             Imgproc.dilate(blackAndWhiteMat, dilated, lineExtractingKernel);
+            saveImage(dilated);
         }
 
         List<MatOfPoint> contours = new ArrayList<>();
@@ -592,6 +593,8 @@ public class ScreenRecorderService extends Service {
         List<MatOfPoint> contours = getContours(bw, false);
         List<org.opencv.core.Rect> boundingBoxes = getBoundingBoxes(contours);
         Collections.reverse(boundingBoxes);
+
+        System.out.println("Lines found: " + boundingBoxes.size());
 
         // remove last element when calculations needs to be done with detected numbers
         if (boundingBoxes.size() == 5) {
@@ -750,7 +753,7 @@ public class ScreenRecorderService extends Service {
         Imgproc.dilate(mat, mainDilatedMat, lineAligningKernel, new Point(55, 5), 1, Core.BORDER_CONSTANT, new Scalar(0));
         Imgproc.findContours(mainDilatedMat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
-        saveImage(mainDilatedMat);
+//        saveImage(mainDilatedMat);
 
         contours.sort((o1, o2) -> {
             Rect rect1 = Imgproc.boundingRect(o1);
@@ -783,6 +786,9 @@ public class ScreenRecorderService extends Service {
                 boundingBox.x -= space;
                 if (boundingBox.x + boundingBox.width < mat.cols() - 4) {
                     boundingBox.width += (space * 2);
+//                    boundingBox.width -= 50;
+                }else{
+                    boundingBox.width += space;
                 }
             }else{
                 if(boundingBox.width < mat.cols() - space) {
@@ -822,7 +828,7 @@ public class ScreenRecorderService extends Service {
         Map<Rect, Rect> imageContentLocations = new LinkedHashMap<>();
 
         int gap = 2;
-        int space = 10;
+        int space = 20;
         int subtractAmountX = 180 / 2;
         int subtractAmountY = 20 / 2;
         int minX = mat.cols(), maxX = 0;
@@ -1077,6 +1083,7 @@ public class ScreenRecorderService extends Service {
                 if (std.toArray()[0] > 127){
                     row.setTo(new Scalar(0, 0, 0));
                 }
+
             }
         }
 
@@ -1086,7 +1093,6 @@ public class ScreenRecorderService extends Service {
 
 //            saveImage(bw);
 //            saveImage(cropped);
-
 
         saveImage(canvas);
 //        saveImage(rgba);
@@ -1436,7 +1442,7 @@ public class ScreenRecorderService extends Service {
         }
 
         charExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(4, 2));
-        lineExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(80, 1));
+        lineExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(150, 1));
 
         kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 20));
         lineAligningKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(110, 10));
