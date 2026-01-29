@@ -117,6 +117,8 @@ public class ScreenRecorderService extends Service {
     Mat erosionKernel;
     Mat rotated;
     Mat whiteRect;
+    Mat kernel;
+    Mat lineAligningKernel;
 
     Bitmap outputBitmap;
     Bitmap testBitmap;
@@ -167,7 +169,7 @@ public class ScreenRecorderService extends Service {
 
         if (Components.getNoteApplication() == Constants.YUAN){
             Imgproc.threshold(src, src, 200, 255, Imgproc.THRESH_BINARY);
-            Core.bitwise_and(src, whiteRect, src);
+//            Core.bitwise_and(src, whiteRect, src);
 //            Imgproc.rectangle(src, new Rect(0, 0, src.cols(), 50), Scalar.all(255.0D), -1);
             Imgproc.rectangle(src, new Rect(0, src.rows() - 55, src.cols(), 50), Scalar.all(0), -1);
 //            Imgproc.threshold(src, src, 5, 255, Imgproc.THRESH_BINARY);
@@ -347,7 +349,8 @@ public class ScreenRecorderService extends Service {
                 }
 
                 boundingBox = new Rect(0, startY, src.cols() - 10, endY - startY);
-
+                System.out.println("Start Y: " + startY);
+                System.out.println("Height: " + (endY - startY));
                 src = src.submat(boundingBox).clone();
 //                saveImage(src);
             }
@@ -455,13 +458,7 @@ public class ScreenRecorderService extends Service {
         }else if(Components.getNoteApplication() == Constants.YUAN){
             System.out.println("saving yuan screenshot......");
 //            saveImage(src);
-            if (src.rows() > 360 && src.cols() > 10) {
-                src = src.submat(0, src.rows(), 5, src.cols() - 5).clone();
-//                saveImage(src);
-            }else{
-                src = src.submat(0, src.rows(), 5, src.cols() - 5).clone();
-//                saveImage(src);
-            }
+            src = src.submat(0, src.rows(), 5, src.cols() - 5).clone();
         }
 
         double meanVal = Core.mean(src).val[0];
@@ -729,6 +726,228 @@ public class ScreenRecorderService extends Service {
         return new TransformedImage(resized, newPosX, newPosY, newWidth, newHeight, false);
     }
 
+    private void arrangeInXAxis(List<Rect> boundingBoxes){
+        Map<Integer[], Rect> yAlignments = new HashMap<>();
+    }
+
+    private void prepareMainDilatedMat(Mat mat){
+        if (mainDilatedMat == null){
+            mainDilatedMat = Mat.zeros(mat.rows(), mat.cols(), mat.type());
+        }else{
+            if (mat.cols() != mainDilatedMat.cols() || mat.rows() != mainDilatedMat.rows()){
+                mainDilatedMat = Mat.zeros(mat.rows(), mat.cols(), mat.type());
+            }
+            mainDilatedMat.setTo(new Scalar(0));
+        }
+    }
+
+    private Mat alignLinesInXAxis(Mat mat){
+        System.out.println("Aligning lines in X axis...");
+        prepareMainDilatedMat(mat);
+
+        List<MatOfPoint> contours = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Imgproc.dilate(mat, mainDilatedMat, lineAligningKernel, new Point(55, 5), 1, Core.BORDER_CONSTANT, new Scalar(0));
+        Imgproc.findContours(mainDilatedMat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        saveImage(mainDilatedMat);
+
+        contours.sort((o1, o2) -> {
+            Rect rect1 = Imgproc.boundingRect(o1);
+            Rect rect2 = Imgproc.boundingRect(o2);
+            return Integer.compare(rect1.y, rect2.y);
+        });
+
+        int centerX = mat.cols() / 2;
+        int space = 2;
+        Mat selectedArea;
+        for (MatOfPoint contour : contours) {
+            Rect boundingBox = Imgproc.boundingRect(contour);
+
+            if (boundingBox.x + boundingBox.width >= mat.cols()){
+                if (boundingBox.x > 0){
+                    boundingBox.x += 55;
+                }
+
+                boundingBox.width = mat.cols() - boundingBox.x;
+            }else{
+                if (boundingBox.x > 0){
+                    boundingBox.x += 55;
+                    boundingBox.width -= 110;
+                }else{
+                    boundingBox.width -= 55;
+                }
+            }
+
+            if (boundingBox.x > 2) {
+                boundingBox.x -= space;
+                if (boundingBox.x + boundingBox.width < mat.cols() - 4) {
+                    boundingBox.width += (space * 2);
+                }
+            }else{
+                if(boundingBox.width < mat.cols() - space) {
+                    boundingBox.width += space;
+                }
+            }
+
+            selectedArea = mat.submat(boundingBox).clone();
+            mat.submat(boundingBox).setTo(new Scalar(0));
+//            Imgproc.rectangle(mat, boundingBox, new Scalar(255));
+            boundingBox.x = centerX - (boundingBox.width / 2);
+//            Imgproc.rectangle(mat, boundingBox, new Scalar(255));
+            selectedArea.copyTo(mat.submat(boundingBox));
+        }
+
+//        saveImage(mat);
+//        saveImage(mainDilatedMat);
+        return mat.clone();
+    }
+
+    private Mat getNewCoordinateForImageContent(Mat mat){
+        System.out.println("Getting new coordinates for image content...");
+//        saveImage(mat);
+        List<MatOfPoint> contours = new ArrayList<>();
+        prepareMainDilatedMat(mat);
+
+        Mat hierarchy = new Mat();
+        Imgproc.dilate(mat, mainDilatedMat, kernel, new Point(90, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
+        Imgproc.findContours(mainDilatedMat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        contours.sort((o1, o2) -> {
+            Rect rect1 = Imgproc.boundingRect(o1);
+            Rect rect2 = Imgproc.boundingRect(o2);
+            return Integer.compare(rect1.y, rect2.y);
+        });
+
+        Map<Rect, Rect> imageContentLocations = new LinkedHashMap<>();
+
+        int gap = 2;
+        int space = 10;
+        int subtractAmountX = 180 / 2;
+        int subtractAmountY = 20 / 2;
+        int minX = mat.cols(), maxX = 0;
+        int minY = mat.rows(), maxY = 0;
+
+        Rect prevBoundingBox = null;
+        Rect newUpdatedBoundingBox = null;
+
+        for (MatOfPoint contour : contours){
+            Rect boundingBox = Imgproc.boundingRect(contour);
+            if (boundingBox.width > 180 && boundingBox.height > 20) {
+                if (boundingBox.x > subtractAmountX) {
+                    if (boundingBox.x + boundingBox.width < mat.cols() - 1) {
+                        boundingBox.x += subtractAmountX - gap;
+                        boundingBox.width -= subtractAmountX * 2;
+                        boundingBox.width += gap;
+                    } else {
+                        boundingBox.x += subtractAmountX;
+                        boundingBox.width -= subtractAmountX;
+                    }
+                } else {
+                    boundingBox.width -= subtractAmountX;
+                }
+
+                boundingBox.y += subtractAmountY - gap;
+                if (boundingBox.y + boundingBox.height < mat.rows() - 2) {
+                    boundingBox.height -= subtractAmountY * 2;
+                    boundingBox.height += gap;
+                }else{
+                    boundingBox.height = mat.rows() - boundingBox.y;
+                }
+
+                int x, y;
+                x = boundingBox.x;
+                y = boundingBox.y;
+
+                if (prevBoundingBox != null) {
+                    if (boundingBox.y > prevBoundingBox.y + prevBoundingBox.height) {
+                        y = newUpdatedBoundingBox.y + newUpdatedBoundingBox.height + space;
+                    } else {
+                        int yDelta = prevBoundingBox.y - boundingBox.y;
+                        y = newUpdatedBoundingBox.y - yDelta;
+                    }
+
+
+                    if (boundingBox.x + boundingBox.width <= prevBoundingBox.x) {
+                        x = newUpdatedBoundingBox.x - boundingBox.width;
+                        if (x >= 10) {
+                            x -= space;
+                        }
+                    } else if (boundingBox.x >= prevBoundingBox.x + prevBoundingBox.width) {
+                        x = prevBoundingBox.x + prevBoundingBox.width + space;
+                    }
+                }
+
+                if (x < 0){
+                    x = 0;
+                }
+
+                if (y < 0){
+                    y = 0;
+                }
+
+                if (x < minX) {
+                    minX = x;
+                }
+
+                if (y < minY) {
+                    minY = y;
+                }
+
+                if (maxX < x + boundingBox.width) {
+                    maxX = x + boundingBox.width;
+                }
+
+                if (maxY < y + boundingBox.height) {
+                    maxY = y + boundingBox.height;
+                }
+
+                prevBoundingBox = boundingBox;
+
+                newUpdatedBoundingBox = new Rect(x, y, boundingBox.width, boundingBox.height);
+                imageContentLocations.put(boundingBox, newUpdatedBoundingBox);
+            }
+//            Imgproc.rectangle(mat, boundingBox, new Scalar(255.0));
+        }
+//        saveImage(mat);
+
+        Mat tempMatForExtractContent = Mat.zeros(mat.rows(), mat.cols(), CvType.CV_8UC1);
+        Rect boundingBox;
+        Rect targetBoundingBox;
+        System.out.println("Copying region...");
+        System.out.println("Size: " + mat.cols() + "x" + mat.rows());
+        for (Map.Entry<Rect, Rect> info : imageContentLocations.entrySet()){
+            boundingBox = info.getKey();
+            System.out.println("X: " + boundingBox.x);
+            System.out.println("Y: " + boundingBox.y);
+            System.out.println("WIDTH: " + boundingBox.width);
+            System.out.println("HEIGHT: " + boundingBox.height);
+
+            targetBoundingBox = info.getValue();
+            System.out.println("X: " + targetBoundingBox.x);
+            System.out.println("Y: " + targetBoundingBox.y);
+            System.out.println("WIDTH: " + targetBoundingBox.width);
+            System.out.println("HEIGHT: " + targetBoundingBox.height);
+            mat.submat(boundingBox).copyTo(tempMatForExtractContent.submat(targetBoundingBox));
+        }
+
+//        Imgproc.rectangle(tempMatForExtractContent, new Rect(minX, minY, maxX - minX, maxY - minY), new Scalar(255.0));
+//        saveImage(tempMatForExtractContent);
+        System.out.println("Extracting content...");
+
+        if (minX > maxX){
+            minX = 0;
+            maxX = tempMatForExtractContent.cols() - 5;
+        }
+
+        if (minY > maxY){
+            minY = 0;
+            maxY = tempMatForExtractContent.rows() - 5;
+        }
+
+        return tempMatForExtractContent.submat(new Rect(minX, minY, maxX - minX, maxY - minY)).clone();
+    }
+
     private Mat prepareImageForDisplay(Mat original) {
         int targetWidth = 368;
         int targetHeight = 448;
@@ -755,359 +974,122 @@ public class ScreenRecorderService extends Service {
 //        saveImage(original);
 
         Mat bw = convertToBlackAndWhite(original);
-
-        //saveImage(bw);
-
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 20));
-        if (mainDilatedMat == null){
-            mainDilatedMat = Mat.zeros(bw.rows(), bw.cols(), bw.type());
-        }else{
-            mainDilatedMat.setTo(new Scalar(0));
-        }
-
-        int subtractingAmount = 0;
-        if (bw.rows() > 20){
-            subtractingAmount = 10;
-        }
-
-        Mat dilatedSubmat;
-        Mat bwSubmat;
-
-        if (Components.getNoteApplication() == Constants.HUIONNOTE) {
-            dilatedSubmat = mainDilatedMat.submat(subtractingAmount, mainDilatedMat.rows() - subtractingAmount, 0, mainDilatedMat.cols());
-            bwSubmat = bw.submat(subtractingAmount, bw.rows() - subtractingAmount, 0, bw.cols());
-            Imgproc.dilate(bwSubmat, dilatedSubmat, kernel, new Point(90, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
-        }else{
-            dilatedSubmat = mainDilatedMat.submat(0, mainDilatedMat.rows(), 5, mainDilatedMat.cols() - 5);
-            bwSubmat = bw.submat(0, bw.rows(), 5, bw.cols() - 5);
-            bw = bwSubmat;
-            Imgproc.dilate(bw, dilatedSubmat, kernel, new Point(90, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
-        }
-
-//        saveImage(dilatedSubmat);
-
-        int subtractingAmountX = 180 / 4;
-        int subtractingAmountY = 20 / 4;
-        System.out.println("Saved dilated image!");
-
-        List<MatOfPoint> contours = new ArrayList<>();
-        Mat hierarchy = new Mat();
-        Imgproc.findContours(dilatedSubmat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
-        System.out.println("Contours Count: " + contours.size());
-
-        // sort contours along the Y axis
-        contours.sort((o1, o2) -> {
-            Rect rect1 = Imgproc.boundingRect(o1);
-            Rect rect2 = Imgproc.boundingRect(o2);
-            return Integer.compare(rect1.y, rect2.y);
-        });
-
-
-
-        // Extract the area of the content
-        Map<MatOfPoint, Integer[]> subMats = new LinkedHashMap<>();
-
-        int groupImageHeight;
-        int groupImageWidth;
-
-        int xStart = Integer.MAX_VALUE;
-        int xEnd = 0;
-
-        int yStart = Integer.MAX_VALUE;
-        int yEnd = 0;
-
-        for (MatOfPoint c : contours){
-            org.opencv.core.Rect r = Imgproc.boundingRect(c);
-
-            int imagePosX = r.x;
-            int imagePosY = r.y;
-            int imageWidth = r.width;
-            int imageHeight = r.height;
-
-            Imgproc.rectangle(bw, r, new Scalar(255), 2);
-
-            if (r.x < xStart){
-                xStart = r.x;
-            }
-
-            if (xEnd == 0) {
-                if (r.x + r.width > xEnd) {
-                    xEnd += r.x + r.width;
-                }
-            }else {
-                if (r.x > xEnd) {
-                    imagePosX = xEnd;
-                    xEnd += r.width;
-                } else {
-                    if (r.x + r.width > xEnd) {
-                        xEnd += (r.x + r.width - xEnd);
-                    }
-                }
-            }
-
-            if (r.y < yStart){
-                yStart = r.y;
-            }
-
-            if(yEnd == 0){
-                if (r.y + r.height > yEnd){
-                    yEnd += (r.y + r.height);
-                }
-            }else {
-                if (r.y < yEnd) {
-                    if (r.y + r.height > yEnd) {
-                        yEnd += ((r.y + r.height) - yEnd);
-                    }
-                } else {
-                    imagePosY = yEnd;
-                    yEnd += r.height;
-                }
-            }
-
-
-            if (imageHeight > subtractingAmountY){
-                imageHeight -= subtractingAmountY;
-            }
-
-            if (Components.getNoteApplication() == Constants.IARVEL) {
-                subMats.put(c, new Integer[]{(imagePosX) + subtractingAmountX, (imagePosY - yStart), imageWidth, imageHeight});
-            }else {
-                if (imageWidth > subtractingAmountX * 2) {
-                    imageWidth -= subtractingAmountX * 2;
-                }
-                subMats.put(c, new Integer[]{(imagePosX) + subtractingAmountX, (imagePosY - yStart), imageWidth, imageHeight});
-            }
-
-            System.out.println("Image PosX: " + imagePosX);
-            System.out.println("Image PosY: " + imagePosY);
-        }
-
+        bw = getNewCoordinateForImageContent(bw);
+//        saveImage(bw);
+        bw = alignLinesInXAxis(bw);
 //        saveImage(bw);
 
         canvas.setTo(new Scalar(0));
 
-        if (contours.size() > 0) {
+        System.out.println("Transforming image...");
+        TransformedImage transformedImage = transformImageForDisplay(bw, targetWidth, targetHeight);
 
-            groupImageWidth = (xEnd - xStart);
-            groupImageHeight = (yEnd - yStart) + (subtractingAmountY * 2);
+        int newPosX = transformedImage.getNewPosX();
+        int newPosY = transformedImage.getNewPosY();
+        System.out.println("Transformed Image:");
+        System.out.println(transformedImage);
 
-//            Imgproc.rectangle(bw, new org.opencv.core.Rect(xStart, yStart, groupImageWidth, groupImageHeight), new Scalar(255), 2);
-//            saveImage(bw);
+        Mat resized = transformedImage.getImage();
+        if (newPosY > 30) {
+            newPosY = 30;
+        }
 
-            System.out.println("Start X: " + xStart);
-            System.out.println("End X: " + xEnd);
-            System.out.println("Start Y: " + yStart);
-            System.out.println("End Y: " + yEnd);
-            System.out.println("Group Image Width: " + groupImageWidth);
-            System.out.println("Group Image Height: " + groupImageHeight);
-            System.out.println("Original image size: " + bw.cols() + "x" + bw.rows());
+//        saveImage(resized);
 
-            Mat cropped = Mat.zeros(groupImageHeight, groupImageWidth, bw.type());
-            cropped.setTo(new Scalar(0));
-            Mat tempBWSubmat;
-            Mat croppedMat;
+        org.opencv.core.Rect roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
+        canvas.setTo(new Scalar(0));
+        Mat targetArea = canvas.submat(roi);
+        resized.copyTo(targetArea);
 
-            for (Map.Entry<MatOfPoint, Integer[]> content : subMats.entrySet()){
-                org.opencv.core.Rect cropRoi = Imgproc.boundingRect(content.getKey());
-                Integer[] imageData = content.getValue();
+        System.out.println("Placed resized image on canvas.");
 
-//                cropRoi.x += 15;
-                cropRoi.y += (subtractingAmountY);
-                cropRoi.width = imageData[2];
-                cropRoi.height = imageData[3];
 
-//                Imgproc.rectangle(bw, cropRoi, new Scalar(255), 2);
+        if (Components.isDoCalculation()){
 
-                System.out.println("CropX: " + cropRoi.x);
-                System.out.println("CropY: " + cropRoi.y);
-                System.out.println("Crop Width: " + cropRoi.width);
-                System.out.println("Crop Height: " + cropRoi.height);
+            Mat result = extractLines(canvas);
 
-                System.out.println("Image Width: " + bw.cols());
-                System.out.println("Image Height: " + bw.rows());
-                System.out.println("Image Data: " + Arrays.toString(imageData));
+            boolean isCalculationTrick = numberList.size() > 1 && numberOfLines <= 4;
+            System.out.println("Number of number lines: " + numberOfLines);
 
-                // need to debug here
-                if (Components.getNoteApplication() == Constants.HUIONNOTE) {
-                    if ((cropRoi.x + cropRoi.width <= bw.cols() && imageData[1] + cropRoi.height <= bw.rows()) &&
-                            (imageData[2] <= cropped.cols() && imageData[3] <= cropped.rows()) &&
-                            (imageData[3] >= 10 && imageData[2] >= 10)
-                    ) {
-
-                        cropRoi.x += (subtractingAmountX);
-
-                        croppedMat = new Mat(bw, cropRoi);
-
-                        System.out.println("Image Data: " + Arrays.toString(imageData));
-
-                        int newPosX = cropRoi.x - xStart;
-                        if (newPosX < 0) {
-                            newPosX = 0;
-                        }
-
-//                        Imgproc.rectangle(cropped, new org.opencv.core.Rect(newPosX, imageData[1], imageData[2], imageData[3]), new Scalar(255), 2);
-                        if (newPosX + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows()){
-                            tempBWSubmat = cropped.submat(new org.opencv.core.Rect(newPosX, imageData[1], imageData[2], imageData[3]));
-                            croppedMat.copyTo(tempBWSubmat);
-                        }
-                    }
-                }else {
-                    if (Components.getNoteApplication() == Constants.IARVEL){
-                        if ((cropRoi.x + cropRoi.width <= bw.cols() && imageData[1] + cropRoi.height <= bw.rows()) &&
-                                (cropRoi.x + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows()) &&
-                                (imageData[3] >= 10 && imageData[2] >= 10)
-                        ) {
-                            croppedMat = new Mat(bw, cropRoi);
-                            System.out.println("Image Data: " + Arrays.toString(imageData));
-
-                            int newPosX = cropRoi.x - xStart;
-                            if (newPosX < 0) {
-                                newPosX = 0;
-                            }
-
-                            if (newPosX + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows()){
-                                tempBWSubmat = cropped.submat(new org.opencv.core.Rect(newPosX, imageData[1], imageData[2], imageData[3]));
-                                croppedMat.copyTo(tempBWSubmat);
-                            }
-                        }
-                    }else{
-                        if ((cropRoi.x + cropRoi.width <= bw.cols() && imageData[1] + cropRoi.height <= bw.rows()) &&
-                                (imageData[2] <= cropped.cols() && imageData[3] <= cropped.rows()) &&
-                                (imageData[3] >= 10 && imageData[2] >= 10)
-                        ) {
-                            croppedMat = new Mat(bw, cropRoi);
-//                            saveImage(croppedMat);
-                            System.out.println("getting images for yuan");
-                            System.out.println("Image Data: " + Arrays.toString(imageData));
-
-                            cropRoi.y -= (subtractingAmountY);
-                            cropRoi.x += subtractingAmountX;
-                            int newPosX = cropRoi.x - xStart;
-                            if (newPosX < 0) {
-                                newPosX = 0;
-                            }
-
-                            if (newPosX + imageData[2] <= cropped.cols() && imageData[1] + imageData[3] <= cropped.rows()){
-                                tempBWSubmat = cropped.submat(new org.opencv.core.Rect(newPosX, imageData[1], imageData[2], imageData[3]));
-                                croppedMat.copyTo(tempBWSubmat);
-                            }
-                        }
-                    }
+            if (numberList.size() > 0) {
+                if (latestDisplayedNumber != numberList.get(numberList.size() - 1)) {
+                    latestDisplayedNumber = numberList.get(numberList.size() - 1);
+                    currentDisplayingNumber = String.valueOf(latestDisplayedNumber);
+                    //new Handler(Looper.getMainLooper()).postDelayed(() -> currentDisplayingNumber = "", Components.getDelay() * 1000L);
                 }
             }
 
-//            saveImage(bw);
-            saveImage(cropped);
-            System.out.println("Transforming image...");
-            TransformedImage transformedImage = transformImageForDisplay(cropped, targetWidth, targetHeight);
+            Size textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, 2, null);
+            int textWidth = (int)textSize.width;
+            int textHeight = (int)textSize.height;
+            int centerX = (canvas.cols() - textWidth) / 2;
 
-            int newPosX = transformedImage.getNewPosX();
-            int newPosY = transformedImage.getNewPosY();
-            System.out.println("Transformed Image:");
-            System.out.println(transformedImage);
-
-            Mat resized = transformedImage.getImage();
-            if (newPosY > 30) {
-                newPosY = 30;
-            }
-//            saveImage(resized);
-            org.opencv.core.Rect roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
-            canvas.setTo(new Scalar(0));
-            Mat targetArea = canvas.submat(roi);
-            resized.copyTo(targetArea);
-
-            System.out.println("Placed resized image on canvas.");
-
-//            canvas = smoothImage(canvas);
-
-            if (Components.isDoCalculation()){
-
-                Mat result = extractLines(canvas);
-
-                boolean isCalculationTrick = numberList.size() > 1 && numberOfLines <= 4;
-                System.out.println("Number of number lines: " + numberOfLines);
-
-                if (numberList.size() > 0) {
-                    if (latestDisplayedNumber != numberList.get(numberList.size() - 1)) {
-                        latestDisplayedNumber = numberList.get(numberList.size() - 1);
-                        currentDisplayingNumber = String.valueOf(latestDisplayedNumber);
-                        //new Handler(Looper.getMainLooper()).postDelayed(() -> currentDisplayingNumber = "", Components.getDelay() * 1000L);
-                    }
-                }
-
-                Size textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, 2, null);
-                int textWidth = (int)textSize.width;
-                int textHeight = (int)textSize.height;
-                int centerX = (canvas.cols() - textWidth) / 2;
-
-                detectedNumbers.setTo(new Scalar(0));
-
-//                canvas.setTo(new Scalar(0));
-//                roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
-//                targetArea = canvas.submat(roi);
-//                resized.copyTo(targetArea);
+            detectedNumbers.setTo(new Scalar(0));
 
                 /*
                 calculate number displaying position along the y axis and 20 is the space between the image and numbers displaying
                  */
-                int numbersDisplayingPosY = newPosY + resized.rows() + 25;
+            int numbersDisplayingPosY = newPosY + resized.rows() + 25;
 
-                if (numbersDisplayingPosY + textHeight + result.rows() >= targetHeight){
-                    numbersDisplayingPosY = targetHeight - (textHeight + result.rows());
-                }
-
-                Rect answerPositionRect = new Rect(0, numbersDisplayingPosY, result.cols(), textHeight + result.rows());
-
-                System.out.println("Detected Numbers Image Size: " + detectedNumbers.cols() + "x" + detectedNumbers.rows());
-                Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, answerPositionRect.y), Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, new Scalar(255), 2);
-                Core.bitwise_or(detectedNumbers, canvas, canvas);
-
-                // add text height to get the Y position for the answer. set answer position rect height to result's height
-                answerPositionRect.y += textHeight;
-                answerPositionRect.height = result.rows();
-                if (numberList.size() == 3) {
-                    System.out.println("Show answer");
-                    Imgproc.threshold(canvas, canvas, 50, 255, Imgproc.THRESH_TOZERO);
-                    System.out.println("canvas size: " + canvas.cols() +  'x' + canvas.rows());
-                    System.out.println("result size: " + result.cols() +  'x' + result.rows());
-                    System.out.println("answer position data: " + answerPositionRect.width +  'x' + answerPositionRect.height + " | " + "X: " + answerPositionRect.x + " Y:" + answerPositionRect.y);
-                    result.copyTo(canvas.submat(answerPositionRect));
-                }
-
+            if (numbersDisplayingPosY + textHeight + result.rows() >= targetHeight){
+                numbersDisplayingPosY = targetHeight - (textHeight + result.rows());
             }
 
+            Rect answerPositionRect = new Rect(0, numbersDisplayingPosY, result.cols(), textHeight + result.rows());
 
-            if (Components.getNoteApplication() == Constants.YUAN && Components.getOrientation() == 1){
-                for (int y = 0; y < 50; y++){
-                    Mat row = canvas.row(y);
-                    MatOfDouble mean = new MatOfDouble();
-                    MatOfDouble std = new MatOfDouble();
+            System.out.println("Detected Numbers Image Size: " + detectedNumbers.cols() + "x" + detectedNumbers.rows());
+            Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, answerPositionRect.y), Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, new Scalar(255), 2);
+            Core.bitwise_or(detectedNumbers, canvas, canvas);
 
-                    Core.meanStdDev(row, mean, std);
-                    if (std.toArray()[0] > 127){
-                        row.setTo(new Scalar(0, 0, 0));
-                    }
-                }
-
-                for (int y = canvas.rows() - 50; y < canvas.rows(); y++){
-                    Mat row = canvas.row(y);
-                    MatOfDouble mean = new MatOfDouble();
-                    MatOfDouble std = new MatOfDouble();
-
-                    Core.meanStdDev(row, mean, std);
-                    if (std.toArray()[0] > 127){
-                        row.setTo(new Scalar(0, 0, 0));
-                    }
-                }
+            // add text height to get the Y position for the answer. set answer position rect height to result's height
+            answerPositionRect.y += textHeight;
+            answerPositionRect.height = result.rows();
+            if (numberList.size() == 3) {
+                System.out.println("Show answer");
+                Imgproc.threshold(canvas, canvas, 50, 255, Imgproc.THRESH_TOZERO);
+                System.out.println("canvas size: " + canvas.cols() +  'x' + canvas.rows());
+                System.out.println("result size: " + result.cols() +  'x' + result.rows());
+                System.out.println("answer position data: " + answerPositionRect.width +  'x' + answerPositionRect.height + " | " + "X: " + answerPositionRect.x + " Y:" + answerPositionRect.y);
+                result.copyTo(canvas.submat(answerPositionRect));
             }
 
-            if (Components.getOrientation() == 0){
-                Core.rotate(canvas, canvas, Core.ROTATE_90_CLOCKWISE);
-            }
-
-            //saveImage(canvas);
-            //saveImage(rgba);
         }
+
+
+        if (Components.getNoteApplication() == Constants.YUAN && Components.getOrientation() == 1){
+            for (int y = 0; y < 50; y++){
+                Mat row = canvas.row(y);
+                MatOfDouble mean = new MatOfDouble();
+                MatOfDouble std = new MatOfDouble();
+
+                Core.meanStdDev(row, mean, std);
+                if (std.toArray()[0] > 127){
+                    row.setTo(new Scalar(0, 0, 0));
+                }
+            }
+
+            for (int y = canvas.rows() - 50; y < canvas.rows(); y++){
+                Mat row = canvas.row(y);
+                MatOfDouble mean = new MatOfDouble();
+                MatOfDouble std = new MatOfDouble();
+
+                Core.meanStdDev(row, mean, std);
+                if (std.toArray()[0] > 127){
+                    row.setTo(new Scalar(0, 0, 0));
+                }
+            }
+        }
+
+        if (Components.getOrientation() == 0){
+            Core.rotate(canvas, canvas, Core.ROTATE_90_CLOCKWISE);
+        }
+
+//            saveImage(bw);
+//            saveImage(cropped);
+
+
+        saveImage(canvas);
+//        saveImage(rgba);
 
         //Core.rotate(canvas, rotated, Core.ROTATE_90_CLOCKWISE);
 
@@ -1275,7 +1257,7 @@ public class ScreenRecorderService extends Service {
                             }
 
                             if (!debug) {
-                                if (connectedToServer) {
+                                if (!connectedToServer) {
                                     prepareImageAndSend(gray[0]);
                                 }
                             }else{
@@ -1455,6 +1437,9 @@ public class ScreenRecorderService extends Service {
 
         charExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(4, 2));
         lineExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(80, 1));
+
+        kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 20));
+        lineAligningKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(110, 10));
 
         erosionKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 15));
 
