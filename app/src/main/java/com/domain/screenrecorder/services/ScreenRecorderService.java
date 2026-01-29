@@ -884,6 +884,10 @@ public class ScreenRecorderService extends Service {
                     }
                 }
 
+                if (x + boundingBox.width >= mat.cols() && x > mat.cols() - (boundingBox.x + boundingBox.width)){
+                    x -= mat.cols() - (boundingBox.x + boundingBox.width);
+                }
+
                 if (x < 0){
                     x = 0;
                 }
@@ -934,6 +938,7 @@ public class ScreenRecorderService extends Service {
             System.out.println("Y: " + targetBoundingBox.y);
             System.out.println("WIDTH: " + targetBoundingBox.width);
             System.out.println("HEIGHT: " + targetBoundingBox.height);
+
             mat.submat(boundingBox).copyTo(tempMatForExtractContent.submat(targetBoundingBox));
         }
 
@@ -1017,6 +1022,11 @@ public class ScreenRecorderService extends Service {
             boolean isCalculationTrick = numberList.size() > 1 && numberOfLines <= 4;
             System.out.println("Number of number lines: " + numberOfLines);
 
+            // when no lines detected clear the previous number stored
+            if (numberOfLines == 0){
+                currentDisplayingNumber = "";
+            }
+
             if (numberList.size() > 0) {
                 if (latestDisplayedNumber != numberList.get(numberList.size() - 1)) {
                     latestDisplayedNumber = numberList.get(numberList.size() - 1);
@@ -1094,7 +1104,7 @@ public class ScreenRecorderService extends Service {
 //            saveImage(bw);
 //            saveImage(cropped);
 
-        saveImage(canvas);
+//        saveImage(canvas);
 //        saveImage(rgba);
 
         //Core.rotate(canvas, rotated, Core.ROTATE_90_CLOCKWISE);
@@ -1263,7 +1273,7 @@ public class ScreenRecorderService extends Service {
                             }
 
                             if (!debug) {
-                                if (!connectedToServer) {
+                                if (connectedToServer) {
                                     prepareImageAndSend(gray[0]);
                                 }
                             }else{
