@@ -341,12 +341,13 @@ public class ScreenRecorderService extends Service {
 
                 int startY = startBBox.y;
 
-                int endY = endBBox.y + endBBox.height - 10;
+                int endY = endBBox.y + endBBox.height;
 
                 if (endBBox.y + endBBox.height > mat.cols() - 20){
                     endBBox = Imgproc.boundingRect(contours.get(contours.size() - 1));
                     endY = endBBox.y + endBBox.height;
                 }
+
 
                 boundingBox = new Rect(0, startY, src.cols() - 10, endY - startY);
                 System.out.println("Start Y: " + startY);
@@ -891,6 +892,11 @@ public class ScreenRecorderService extends Service {
                     x -= mat.cols() - (boundingBox.x + boundingBox.width);
                 }
 
+                if (y + boundingBox.height >= mat.rows()){
+                    int yDelta = (y + boundingBox.height) - mat.rows();
+                    y -= yDelta;
+                }
+
                 if (x < 0){
                     x = 0;
                 }
@@ -913,6 +919,19 @@ public class ScreenRecorderService extends Service {
 
                 if (maxY < y + boundingBox.height) {
                     maxY = y + boundingBox.height;
+                }
+
+                if(boundingBox.height < 0){
+                    System.out.println(boundingBox.height);
+                    if (boundingBox.y + 2 < mat.rows()) {
+                        boundingBox.height = 2;
+                    }else{
+                        boundingBox.height = mat.rows() - boundingBox.y;
+                    }
+                }
+
+                if (boundingBox.width < 0){
+                    boundingBox.width = mat.cols();
                 }
 
                 prevBoundingBox = boundingBox;
@@ -1105,13 +1124,7 @@ public class ScreenRecorderService extends Service {
             Core.rotate(canvas, canvas, Core.ROTATE_90_CLOCKWISE);
         }
 
-//            saveImage(bw);
-//            saveImage(cropped);
-
-//        saveImage(canvas);
-//        saveImage(rgba);
-
-        //Core.rotate(canvas, rotated, Core.ROTATE_90_CLOCKWISE);
+        saveImage(canvas);
 
         return canvas;
     }
@@ -1277,7 +1290,7 @@ public class ScreenRecorderService extends Service {
                             }
 
                             if (!debug) {
-                                if (connectedToServer) {
+                                if (!connectedToServer) {
                                     prepareImageAndSend(gray[0]);
                                 }
                             }else{
