@@ -477,7 +477,7 @@ public class ScreenRecorderService extends Service {
             Imgproc.dilate(blackAndWhiteMat, dilated, charExtractingKernel);
         }else{
             Imgproc.dilate(blackAndWhiteMat, dilated, lineExtractingKernel);
-            saveImage(dilated);
+//            saveImage(dilated);
         }
 
         List<MatOfPoint> contours = new ArrayList<>();
@@ -816,7 +816,7 @@ public class ScreenRecorderService extends Service {
         prepareMainDilatedMat(mat);
 
         Mat hierarchy = new Mat();
-        Imgproc.dilate(mat, mainDilatedMat, kernel, new Point(90, 10), 1, Core.BORDER_CONSTANT, new Scalar(0));
+        Imgproc.dilate(mat, mainDilatedMat, kernel, new Point(90, 2), 1, Core.BORDER_CONSTANT, new Scalar(0));
         Imgproc.findContours(mainDilatedMat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
         contours.sort((o1, o2) -> {
@@ -828,9 +828,8 @@ public class ScreenRecorderService extends Service {
         Map<Rect, Rect> imageContentLocations = new LinkedHashMap<>();
 
         int gap = 2;
-        int space = 20;
         int subtractAmountX = 180 / 2;
-        int subtractAmountY = 20 / 2;
+        int subtractAmountY = 4 / 2;
         int minX = mat.cols(), maxX = 0;
         int minY = mat.rows(), maxY = 0;
 
@@ -839,7 +838,7 @@ public class ScreenRecorderService extends Service {
 
         for (MatOfPoint contour : contours){
             Rect boundingBox = Imgproc.boundingRect(contour);
-            if (boundingBox.width > 180 && boundingBox.height > 20) {
+            if (boundingBox.width > 180 && boundingBox.height > 4) {
                 if (boundingBox.x > subtractAmountX) {
                     if (boundingBox.x + boundingBox.width < mat.cols() - 1) {
                         boundingBox.x += subtractAmountX - gap;
@@ -853,20 +852,24 @@ public class ScreenRecorderService extends Service {
                     boundingBox.width -= subtractAmountX;
                 }
 
-                boundingBox.y += subtractAmountY - gap;
+                boundingBox.y += subtractAmountY;
+                boundingBox.y -= gap;
                 if (boundingBox.y + boundingBox.height < mat.rows() - 2) {
-                    boundingBox.height -= subtractAmountY * 2;
+                    if (boundingBox.height - (subtractAmountY * 2) > 0) {
+                        boundingBox.height -= subtractAmountY * 2;
+                    }
                     boundingBox.height += gap;
                 }else{
                     boundingBox.height = mat.rows() - boundingBox.y;
                 }
 
+                int space = 15;
                 int x, y;
                 x = boundingBox.x;
                 y = boundingBox.y;
 
                 if (prevBoundingBox != null) {
-                    if (boundingBox.y > prevBoundingBox.y + prevBoundingBox.height) {
+                    if (boundingBox.y >= prevBoundingBox.y + prevBoundingBox.height) {
                         y = newUpdatedBoundingBox.y + newUpdatedBoundingBox.height + space;
                     } else {
                         int yDelta = prevBoundingBox.y - boundingBox.y;
@@ -940,6 +943,7 @@ public class ScreenRecorderService extends Service {
             System.out.println("HEIGHT: " + targetBoundingBox.height);
 
             mat.submat(boundingBox).copyTo(tempMatForExtractContent.submat(targetBoundingBox));
+//            Imgproc.rectangle(tempMatForExtractContent, new Rect(targetBoundingBox.x, targetBoundingBox.y, targetBoundingBox.width, targetBoundingBox.height), new Scalar(255.0));
         }
 
 //        Imgproc.rectangle(tempMatForExtractContent, new Rect(minX, minY, maxX - minX, maxY - minY), new Scalar(255.0));
@@ -948,12 +952,12 @@ public class ScreenRecorderService extends Service {
 
         if (minX > maxX){
             minX = 0;
-            maxX = tempMatForExtractContent.cols() - 5;
+            maxX = tempMatForExtractContent.cols() - 1;
         }
 
         if (minY > maxY){
             minY = 0;
-            maxY = tempMatForExtractContent.rows() - 5;
+            maxY = tempMatForExtractContent.rows() - 1;
         }
 
         return tempMatForExtractContent.submat(new Rect(minX, minY, maxX - minX, maxY - minY)).clone();
@@ -1045,7 +1049,7 @@ public class ScreenRecorderService extends Service {
                 /*
                 calculate number displaying position along the y axis and 20 is the space between the image and numbers displaying
                  */
-            int numbersDisplayingPosY = newPosY + resized.rows() + 25;
+            int numbersDisplayingPosY = newPosY + resized.rows() + 45;
 
             if (numbersDisplayingPosY + textHeight + result.rows() >= targetHeight){
                 numbersDisplayingPosY = targetHeight - (textHeight + result.rows());
@@ -1273,7 +1277,7 @@ public class ScreenRecorderService extends Service {
                             }
 
                             if (!debug) {
-                                if (connectedToServer) {
+                                if (!connectedToServer) {
                                     prepareImageAndSend(gray[0]);
                                 }
                             }else{
@@ -1454,7 +1458,7 @@ public class ScreenRecorderService extends Service {
         charExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(4, 2));
         lineExtractingKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(150, 1));
 
-        kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 20));
+        kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(180, 4));
         lineAligningKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(110, 10));
 
         erosionKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 15));
