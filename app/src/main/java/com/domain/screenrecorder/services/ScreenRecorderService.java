@@ -1277,7 +1277,7 @@ public class ScreenRecorderService extends Service {
                             }
 
                             if (!debug) {
-                                if (!connectedToServer) {
+                                if (connectedToServer) {
                                     prepareImageAndSend(gray[0]);
                                 }
                             }else{
