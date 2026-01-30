@@ -935,6 +935,15 @@ public class ScreenRecorderService extends Service {
                 }
 
                 prevBoundingBox = boundingBox;
+                /*
+                bug should be fixed in here. x coordinate plus width exceeds the image boundary.
+                same happens with y coordinate plus height
+
+                if (x + boundingBox.width > mat.cols()){
+                    boundingBox.width = x;
+                }
+
+                */
 
                 newUpdatedBoundingBox = new Rect(x, y, boundingBox.width, boundingBox.height);
                 imageContentLocations.put(boundingBox, newUpdatedBoundingBox);
@@ -1290,7 +1299,7 @@ public class ScreenRecorderService extends Service {
                             }
 
                             if (!debug) {
-                                if (!connectedToServer) {
+                                if (connectedToServer) {
                                     prepareImageAndSend(gray[0]);
                                 }
                             }else{
