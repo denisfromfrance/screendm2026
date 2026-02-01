@@ -199,7 +199,7 @@ public class ScreenRecorderService extends Service {
             if (endY - 50 < startY){
                 endY = startY + 50;
             }else {
-                endY -= 50;
+                endY -= 60;
             }
 
             System.out.println("Extracting the column range");
@@ -937,13 +937,19 @@ public class ScreenRecorderService extends Service {
                 prevBoundingBox = boundingBox;
                 /*
                 bug should be fixed in here. x coordinate plus width exceeds the image boundary.
-                same happens with y coordinate plus height
+                same happens with y coordinate plus height*/
 
-                if (x + boundingBox.width > mat.cols()){
-                    boundingBox.width = x;
+                System.out.println("Size before validation check: " + boundingBox.width + "x" + boundingBox.height);
+
+                if (x + boundingBox.width >= mat.cols() - 1){
+                    boundingBox.width = (mat.cols() - 1) - x;
                 }
 
-                */
+                if (y + boundingBox.height >= mat.rows() - 1){
+                    boundingBox.width = (mat.rows() - 1) - y;
+                }
+
+                System.out.println("Size after validation check: " + boundingBox.width + "x" + boundingBox.height);
 
                 newUpdatedBoundingBox = new Rect(x, y, boundingBox.width, boundingBox.height);
                 imageContentLocations.put(boundingBox, newUpdatedBoundingBox);
@@ -1100,7 +1106,6 @@ public class ScreenRecorderService extends Service {
                 System.out.println("answer position data: " + answerPositionRect.width +  'x' + answerPositionRect.height + " | " + "X: " + answerPositionRect.x + " Y:" + answerPositionRect.y);
                 result.copyTo(canvas.submat(answerPositionRect));
             }
-
         }
 
 
@@ -1125,7 +1130,6 @@ public class ScreenRecorderService extends Service {
                 if (std.toArray()[0] > 127){
                     row.setTo(new Scalar(0, 0, 0));
                 }
-
             }
         }
 
