@@ -949,6 +949,26 @@ public class ScreenRecorderService extends Service {
                     boundingBox.width = (mat.rows() - 1) - y;
                 }
 
+                if (boundingBox.y + boundingBox.height >= mat.rows()){
+                    if (boundingBox.y >= 2){
+                        boundingBox.y -= 2;
+                    }else{
+                        if(boundingBox.height >= 2){
+                            boundingBox.height -= 1;
+                        }
+                    }
+                }
+
+                if (boundingBox.x + boundingBox.width >= mat.cols()){
+                    if (boundingBox.x >= 2){
+                        boundingBox.x -= 2;
+                    }else{
+                        if(boundingBox.width >= 2){
+                            boundingBox.width -= 1;
+                        }
+                    }
+                }
+
                 System.out.println("Size after validation check: " + boundingBox.width + "x" + boundingBox.height);
 
                 newUpdatedBoundingBox = new Rect(x, y, boundingBox.width, boundingBox.height);
@@ -1137,7 +1157,7 @@ public class ScreenRecorderService extends Service {
             Core.rotate(canvas, canvas, Core.ROTATE_90_CLOCKWISE);
         }
 
-        saveImage(canvas);
+        // saveImage(canvas);
 
         return canvas;
     }
