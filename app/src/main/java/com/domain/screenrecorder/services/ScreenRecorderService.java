@@ -812,7 +812,7 @@ public class ScreenRecorderService extends Service {
 
     private Mat getNewCoordinateForImageContent(Mat mat){
         System.out.println("Getting new coordinates for image content...");
-//        saveImage(mat);
+        saveImage(mat);
         List<MatOfPoint> contours = new ArrayList<>();
         prepareMainDilatedMat(mat);
 
@@ -946,7 +946,7 @@ public class ScreenRecorderService extends Service {
                 }
 
                 if (y + boundingBox.height >= mat.rows() - 1){
-                    boundingBox.width = (mat.rows() - 1) - y;
+                    boundingBox.height = (mat.rows() - 1) - y;
                 }
 
                 if (boundingBox.y + boundingBox.height >= mat.rows()){
@@ -1157,7 +1157,7 @@ public class ScreenRecorderService extends Service {
             Core.rotate(canvas, canvas, Core.ROTATE_90_CLOCKWISE);
         }
 
-        // saveImage(canvas);
+         saveImage(canvas);
 
         return canvas;
     }
@@ -1323,7 +1323,7 @@ public class ScreenRecorderService extends Service {
                             }
 
                             if (!debug) {
-                                if (connectedToServer) {
+                                if (!connectedToServer) {
                                     prepareImageAndSend(gray[0]);
                                 }
                             }else{
