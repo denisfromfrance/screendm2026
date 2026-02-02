@@ -1157,7 +1157,7 @@ public class ScreenRecorderService extends Service {
             Core.rotate(canvas, canvas, Core.ROTATE_90_CLOCKWISE);
         }
 
-         saveImage(canvas);
+//         saveImage(canvas);
 
         return canvas;
     }
@@ -1323,7 +1323,7 @@ public class ScreenRecorderService extends Service {
                             }
 
                             if (!debug) {
-                                if (!connectedToServer) {
+                                if (connectedToServer) {
                                     prepareImageAndSend(gray[0]);
                                 }
                             }else{
