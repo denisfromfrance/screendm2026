@@ -1157,6 +1157,18 @@ public class ScreenRecorderService extends Service {
             newPosY = 30;
         }
 
+        if (Components.getNoteApplication() == Constants.YUAN){
+            Mat tempResizedImage = new Mat();
+            double fx = 0.7D;
+            double fy = 0.7D;
+
+            Imgproc.resize(resized, tempResizedImage, new Size(), fx, fy, Imgproc.INTER_LINEAR);
+
+            newPosX = (canvas.cols() / 2) - (tempResizedImage.cols() / 2);
+            newPosY = (canvas.rows() / 2) - (tempResizedImage.rows() / 2);
+            resized = tempResizedImage;
+        }
+
 //        saveImage(resized);
 
         org.opencv.core.Rect roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
@@ -1253,7 +1265,7 @@ public class ScreenRecorderService extends Service {
             Core.rotate(canvas, canvas, Core.ROTATE_90_CLOCKWISE);
         }
 
-//         saveImage(canvas);
+         saveImage(canvas);
 
         return canvas;
     }
@@ -1391,7 +1403,7 @@ public class ScreenRecorderService extends Service {
                 if (latestImage != null) {
                     PixelCopy.request(imageReader.getSurface(), bitmap, copyResult -> {
                         if (copyResult == PixelCopy.SUCCESS) {
-                            boolean debug = false;
+                            boolean debug = true;
 
                             if (!debug) {
                                 Utils.bitmapToMat(bitmap, imageMat);
@@ -1618,7 +1630,7 @@ public class ScreenRecorderService extends Service {
 
         rotated = Mat.zeros(368, 448, CvType.CV_8UC1);
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.huion24);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuan12);
 
         testBitmap = BitmapFactory.decodeStream(is);
 
