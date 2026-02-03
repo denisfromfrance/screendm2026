@@ -119,6 +119,8 @@ public class ScreenRecorderService extends Service {
     Mat whiteRect;
     Mat kernel;
     Mat lineAligningKernel;
+    Mat huionBlackAndWhiteMask;
+    Mat tempHuionImage;
 
     Bitmap outputBitmap;
     Bitmap testBitmap;
@@ -147,6 +149,38 @@ public class ScreenRecorderService extends Service {
     private boolean isPureBlack(Mat input){
         double meanVal = Core.mean(input).val[0];
         return meanVal < 2;
+    }
+
+
+    private int[] extractCenteredNonBlackRegion(Mat mat){
+        int height = mat.rows();
+        int width = mat.cols();
+        int centerY = height / 2;
+
+        int startY = 0;
+        int endY = 0;
+
+        int[] boundary = new int[2];
+
+        for (int y = centerY; y > 0; y--){
+            boolean isStartBlack = isPureBlack(mat.row(y));
+            boolean isEndBlack = isPureBlack(mat.row(height - y));
+
+            if (isStartBlack && startY == 0){
+                startY = y;
+            }
+
+            if (isEndBlack && endY == 0){
+                endY = height - y;
+                if (endY > 1){
+                    endY -= 1;
+                }
+            }
+        }
+
+        boundary[0] = startY;
+        boundary[1] = endY;
+        return boundary;
     }
 
 
@@ -243,9 +277,24 @@ public class ScreenRecorderService extends Service {
                 Core.bitwise_not(src, src);
             }
 
-        }else{
+        }else if(Components.getNoteApplication() == Constants.IARVEL){
             Imgproc.threshold(src, src, 250, 255, Imgproc.THRESH_BINARY);
 //            Imgproc.morphologyEx(src, src, Imgproc.MORPH_OPEN, erosionKernel);
+        }else if(Components.getNoteApplication() == Constants.HUIONNOTE){
+//            Core.inRange(src, Scalar.all(0), Scalar.all(0), huionBlackAndWhiteMask);
+//            Mat huionCleanImage = new Mat(src.rows(), src.cols(), src.type(), new Scalar(255));
+//            src.copyTo(huionCleanImage, huionBlackAndWhiteMask);
+            tempHuionImage.setTo(new Scalar(0));
+            if (tempHuionImage == null || tempHuionImage.rows() != src.rows() || tempHuionImage.cols() != src.cols()){
+                tempHuionImage = new Mat(src.rows(), src.cols(), src.type());
+            }
+            Imgproc.threshold(src, tempHuionImage, 250, 255, Imgproc.THRESH_BINARY);
+
+            int[] boundery = extractCenteredNonBlackRegion(tempHuionImage);
+            src = src.submat(new Rect(0, boundery[0], src.cols(), boundery[1] - boundery[0])).clone();
+            src = removeNoise(src);
+            Imgproc.threshold(src, src, 250, 255, Imgproc.THRESH_BINARY);
+//            saveImage(src);
         }
 
 //        Imgproc.rectangle(src, new Rect(0, 0, src.cols(), 100), new Scalar(255, 255, 255));
@@ -327,9 +376,14 @@ public class ScreenRecorderService extends Service {
             });
 
             org.opencv.core.Rect canvasArea = Imgproc.boundingRect(contours.get(0));
-            if (contours.size() > 1 && Components.getNoteApplication() == Constants.HUIONNOTE){
-                canvasArea = Imgproc.boundingRect(contours.get(1));
-                src = mat.submat(canvasArea);
+//            if (contours.size() > 1 && Components.getNoteApplication() == Constants.HUIONNOTE){
+//                canvasArea = Imgproc.boundingRect(contours.get(1));
+//                src = mat.submat(canvasArea);
+//            }
+
+            if (Components.getNoteApplication() == Constants.HUIONNOTE){
+                canvasArea = Imgproc.boundingRect(contours.get(0));
+                src = src.submat(canvasArea);
             }
             System.out.println("Extracted content from Huion");
 
@@ -683,6 +737,7 @@ public class ScreenRecorderService extends Service {
         int numComponents = Imgproc.connectedComponentsWithStats(mat, labels, stats, centroids);
 
         int MINAREA = 4;
+
         Mat cleaned = Mat.zeros(mat.size(), mat.type());
         for (int i = 1; i < numComponents; i++){
             int area = (int)stats.get(i, Imgproc.CC_STAT_AREA)[0];
@@ -812,7 +867,7 @@ public class ScreenRecorderService extends Service {
 
     private Mat getNewCoordinateForImageContent(Mat mat){
         System.out.println("Getting new coordinates for image content...");
-        saveImage(mat);
+        //saveImage(mat);
         List<MatOfPoint> contours = new ArrayList<>();
         prepareMainDilatedMat(mat);
 
@@ -1042,7 +1097,11 @@ public class ScreenRecorderService extends Service {
 
 //        saveImage(original);
 
+//        Mat noiseRemoved = removeNoise(original);
+//        saveImage(noiseRemoved);
+
         Mat bw = convertToBlackAndWhite(original);
+//        saveImage(bw);
         bw = getNewCoordinateForImageContent(bw);
 //        saveImage(bw);
         bw = alignLinesInXAxis(bw);
@@ -1295,7 +1354,7 @@ public class ScreenRecorderService extends Service {
                 if (latestImage != null) {
                     PixelCopy.request(imageReader.getSurface(), bitmap, copyResult -> {
                         if (copyResult == PixelCopy.SUCCESS) {
-                            boolean debug = false;
+                            boolean debug = true;
 
                             if (!debug) {
                                 Utils.bitmapToMat(bitmap, imageMat);
@@ -1323,7 +1382,7 @@ public class ScreenRecorderService extends Service {
                             }
 
                             if (!debug) {
-                                if (connectedToServer) {
+                                if (!connectedToServer) {
                                     prepareImageAndSend(gray[0]);
                                 }
                             }else{
@@ -1509,6 +1568,8 @@ public class ScreenRecorderService extends Service {
 
         erosionKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 15));
 
+        huionBlackAndWhiteMask = new Mat();
+
         canvas = Mat.zeros(448, 368, CvType.CV_8UC1);
         rgba = Mat.zeros(canvas.rows(), canvas.cols(), CvType.CV_8UC4);
         outputBitmap = Bitmap.createBitmap(canvas.cols(), canvas.rows(), Bitmap.Config.ARGB_8888);
@@ -1520,7 +1581,7 @@ public class ScreenRecorderService extends Service {
 
         rotated = Mat.zeros(368, 448, CvType.CV_8UC1);
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuan12);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.huion24);
 
         testBitmap = BitmapFactory.decodeStream(is);
 
