@@ -1265,7 +1265,7 @@ public class ScreenRecorderService extends Service {
             Core.rotate(canvas, canvas, Core.ROTATE_90_CLOCKWISE);
         }
 
-         saveImage(canvas);
+//         saveImage(canvas);
 
         return canvas;
     }
@@ -1403,7 +1403,7 @@ public class ScreenRecorderService extends Service {
                 if (latestImage != null) {
                     PixelCopy.request(imageReader.getSurface(), bitmap, copyResult -> {
                         if (copyResult == PixelCopy.SUCCESS) {
-                            boolean debug = true;
+                            boolean debug = false;
 
                             if (!debug) {
                                 Utils.bitmapToMat(bitmap, imageMat);
