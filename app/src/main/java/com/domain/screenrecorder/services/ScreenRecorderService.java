@@ -1153,9 +1153,6 @@ public class ScreenRecorderService extends Service {
         System.out.println(transformedImage);
 
         Mat resized = transformedImage.getImage();
-        if (newPosY > 30) {
-            newPosY = 30;
-        }
 
         if (Components.getNoteApplication() == Constants.YUAN){
             Mat tempResizedImage = new Mat();
@@ -1166,7 +1163,11 @@ public class ScreenRecorderService extends Service {
 
             newPosX = (canvas.cols() / 2) - (tempResizedImage.cols() / 2);
             newPosY = (canvas.rows() / 2) - (tempResizedImage.rows() / 2);
-            resized = tempResizedImage;
+            resized = tempResizedImage.clone();
+        }
+
+        if (newPosY > 30) {
+            newPosY = 30;
         }
 
 //        saveImage(resized);
