@@ -284,14 +284,37 @@ public class ScreenRecorderService extends Service {
 //            Core.inRange(src, Scalar.all(0), Scalar.all(0), huionBlackAndWhiteMask);
 //            Mat huionCleanImage = new Mat(src.rows(), src.cols(), src.type(), new Scalar(255));
 //            src.copyTo(huionCleanImage, huionBlackAndWhiteMask);
-            tempHuionImage.setTo(new Scalar(0));
+            if (tempHuionImage != null){
+                tempHuionImage.setTo(new Scalar(0));
+            }
             if (tempHuionImage == null || tempHuionImage.rows() != src.rows() || tempHuionImage.cols() != src.cols()){
                 tempHuionImage = new Mat(src.rows(), src.cols(), src.type());
+                tempHuionImage.setTo(new Scalar(0));
             }
             Imgproc.threshold(src, tempHuionImage, 250, 255, Imgproc.THRESH_BINARY);
 
             int[] boundery = extractCenteredNonBlackRegion(tempHuionImage);
-            src = src.submat(new Rect(0, boundery[0], src.cols(), boundery[1] - boundery[0])).clone();
+            if(boundery[0] < 0){
+                boundery[0] = 0;
+            }
+
+            if (boundery[1] <= 0){
+                boundery[1] = src.rows() - 1;
+            }
+
+            System.out.println("Source Image Size: " + src.cols() + "x" + src.rows());
+            System.out.println("Boundery: " + boundery[0] + " | " + boundery[1]);
+
+            int tempBoundery = 0;
+            if (boundery[0] > boundery[1]){
+                tempBoundery = boundery[1];
+                boundery[1] = boundery[0];
+                boundery[0] = tempBoundery;
+            }
+
+            if (src.rows() > boundery[1] - boundery[0]){
+                src = src.submat(new Rect(0, boundery[0], src.cols(), boundery[1] - boundery[0])).clone();
+            }
             src = removeNoise(src);
             Imgproc.threshold(src, src, 250, 255, Imgproc.THRESH_BINARY);
 //            saveImage(src);
@@ -781,6 +804,11 @@ public class ScreenRecorderService extends Service {
         Mat resized = Mat.zeros((int)newHeight, (int)newWidth, CvType.CV_8UC1);
         resized.setTo(new Scalar(0));
         Size size = new Size(newWidth, newHeight);
+        System.out.println("New Size" + newWidth + "x" + newHeight);
+        System.out.println("Cropped Image Size" + croppedImage.cols() + "x" + croppedImage.cols());
+        if (newHeight < 1.0D || newWidth < 1.0D){
+            return new TransformedImage(croppedImage, 0, 0, croppedImage.cols(), croppedImage.rows(), false);
+        }
         Imgproc.resize(croppedImage, resized, size, 0, 0, Imgproc.INTER_LANCZOS4);
         return new TransformedImage(resized, newPosX, newPosY, newWidth, newHeight, false);
     }
@@ -1069,6 +1097,13 @@ public class ScreenRecorderService extends Service {
             maxY = tempMatForExtractContent.rows() - 1;
         }
 
+        System.out.println("Min Y: " + minY);
+        System.out.println("Max Y: " + maxY);
+
+        if (maxY - minY < 10 || maxX - minX < 10){
+            return tempMatForExtractContent.clone();
+        }
+
         return tempMatForExtractContent.submat(new Rect(minX, minY, maxX - minX, maxY - minY)).clone();
     }
 
@@ -1126,64 +1161,66 @@ public class ScreenRecorderService extends Service {
 
         org.opencv.core.Rect roi = new org.opencv.core.Rect(newPosX, newPosY, resized.cols(), resized.rows());
         canvas.setTo(new Scalar(0));
-        Mat targetArea = canvas.submat(roi);
-        resized.copyTo(targetArea);
+        if (roi.height > 10){
+            Mat targetArea = canvas.submat(roi);
+            resized.copyTo(targetArea);
 
-        System.out.println("Placed resized image on canvas.");
+            System.out.println("Placed resized image on canvas.");
 
 
-        if (Components.isDoCalculation()){
+            if (Components.isDoCalculation()){
 
-            Mat result = extractLines(canvas);
+                Mat result = extractLines(canvas);
 
-            boolean isCalculationTrick = numberList.size() > 1 && numberOfLines <= 4;
-            System.out.println("Number of number lines: " + numberOfLines);
+                boolean isCalculationTrick = numberList.size() > 1 && numberOfLines <= 4;
+                System.out.println("Number of number lines: " + numberOfLines);
 
-            // when no lines detected clear the previous number stored
-            if (numberOfLines == 0){
-                currentDisplayingNumber = "";
-            }
-
-            if (numberList.size() > 0) {
-                if (latestDisplayedNumber != numberList.get(numberList.size() - 1)) {
-                    latestDisplayedNumber = numberList.get(numberList.size() - 1);
-                    currentDisplayingNumber = String.valueOf(latestDisplayedNumber);
-                    //new Handler(Looper.getMainLooper()).postDelayed(() -> currentDisplayingNumber = "", Components.getDelay() * 1000L);
+                // when no lines detected clear the previous number stored
+                if (numberOfLines == 0){
+                    currentDisplayingNumber = "";
                 }
-            }
 
-            Size textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, 2, null);
-            int textWidth = (int)textSize.width;
-            int textHeight = (int)textSize.height;
-            int centerX = (canvas.cols() - textWidth) / 2;
+                if (numberList.size() > 0) {
+                    if (latestDisplayedNumber != numberList.get(numberList.size() - 1)) {
+                        latestDisplayedNumber = numberList.get(numberList.size() - 1);
+                        currentDisplayingNumber = String.valueOf(latestDisplayedNumber);
+                        //new Handler(Looper.getMainLooper()).postDelayed(() -> currentDisplayingNumber = "", Components.getDelay() * 1000L);
+                    }
+                }
 
-            detectedNumbers.setTo(new Scalar(0));
+                Size textSize = Imgproc.getTextSize(currentDisplayingNumber, Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, 2, null);
+                int textWidth = (int)textSize.width;
+                int textHeight = (int)textSize.height;
+                int centerX = (canvas.cols() - textWidth) / 2;
 
-                /*
-                calculate number displaying position along the y axis and 20 is the space between the image and numbers displaying
-                 */
-            int numbersDisplayingPosY = newPosY + resized.rows() + 45;
+                detectedNumbers.setTo(new Scalar(0));
 
-            if (numbersDisplayingPosY + textHeight + result.rows() >= targetHeight){
-                numbersDisplayingPosY = targetHeight - (textHeight + result.rows());
-            }
+                    /*
+                    calculate number displaying position along the y axis and 20 is the space between the image and numbers displaying
+                     */
+                int numbersDisplayingPosY = newPosY + resized.rows() + 45;
 
-            Rect answerPositionRect = new Rect(0, numbersDisplayingPosY, result.cols(), textHeight + result.rows());
+                if (numbersDisplayingPosY + textHeight + result.rows() >= targetHeight){
+                    numbersDisplayingPosY = targetHeight - (textHeight + result.rows());
+                }
 
-            System.out.println("Detected Numbers Image Size: " + detectedNumbers.cols() + "x" + detectedNumbers.rows());
-            Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, answerPositionRect.y), Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, new Scalar(255), 2);
-            Core.bitwise_or(detectedNumbers, canvas, canvas);
+                Rect answerPositionRect = new Rect(0, numbersDisplayingPosY, result.cols(), textHeight + result.rows());
 
-            // add text height to get the Y position for the answer. set answer position rect height to result's height
-            answerPositionRect.y += textHeight;
-            answerPositionRect.height = result.rows();
-            if (numberList.size() == 3) {
-                System.out.println("Show answer");
-                Imgproc.threshold(canvas, canvas, 50, 255, Imgproc.THRESH_TOZERO);
-                System.out.println("canvas size: " + canvas.cols() +  'x' + canvas.rows());
-                System.out.println("result size: " + result.cols() +  'x' + result.rows());
-                System.out.println("answer position data: " + answerPositionRect.width +  'x' + answerPositionRect.height + " | " + "X: " + answerPositionRect.x + " Y:" + answerPositionRect.y);
-                result.copyTo(canvas.submat(answerPositionRect));
+                System.out.println("Detected Numbers Image Size: " + detectedNumbers.cols() + "x" + detectedNumbers.rows());
+                Imgproc.putText(detectedNumbers, currentDisplayingNumber, new Point(centerX, answerPositionRect.y), Imgproc.FONT_HERSHEY_SIMPLEX, 1.4, new Scalar(255), 2);
+                Core.bitwise_or(detectedNumbers, canvas, canvas);
+
+                // add text height to get the Y position for the answer. set answer position rect height to result's height
+                answerPositionRect.y += textHeight;
+                answerPositionRect.height = result.rows();
+                if (numberList.size() == 3) {
+                    System.out.println("Show answer");
+                    Imgproc.threshold(canvas, canvas, 50, 255, Imgproc.THRESH_TOZERO);
+                    System.out.println("canvas size: " + canvas.cols() +  'x' + canvas.rows());
+                    System.out.println("result size: " + result.cols() +  'x' + result.rows());
+                    System.out.println("answer position data: " + answerPositionRect.width +  'x' + answerPositionRect.height + " | " + "X: " + answerPositionRect.x + " Y:" + answerPositionRect.y);
+                    result.copyTo(canvas.submat(answerPositionRect));
+                }
             }
         }
 
@@ -1354,7 +1391,7 @@ public class ScreenRecorderService extends Service {
                 if (latestImage != null) {
                     PixelCopy.request(imageReader.getSurface(), bitmap, copyResult -> {
                         if (copyResult == PixelCopy.SUCCESS) {
-                            boolean debug = true;
+                            boolean debug = false;
 
                             if (!debug) {
                                 Utils.bitmapToMat(bitmap, imageMat);
@@ -1382,7 +1419,7 @@ public class ScreenRecorderService extends Service {
                             }
 
                             if (!debug) {
-                                if (!connectedToServer) {
+                                if (connectedToServer) {
                                     prepareImageAndSend(gray[0]);
                                 }
                             }else{
