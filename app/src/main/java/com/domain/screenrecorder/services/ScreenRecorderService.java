@@ -1154,6 +1154,7 @@ public class ScreenRecorderService extends Service {
 
         Mat resized = transformedImage.getImage();
 
+        /*
         if (Components.getNoteApplication() == Constants.YUAN){
             Mat tempResizedImage = new Mat();
             double fx = 0.7D;
@@ -1164,7 +1165,7 @@ public class ScreenRecorderService extends Service {
             newPosX = (canvas.cols() / 2) - (tempResizedImage.cols() / 2);
             newPosY = (canvas.rows() / 2) - (tempResizedImage.rows() / 2);
             resized = tempResizedImage.clone();
-        }
+        }*/
 
         if (newPosY > 30) {
             newPosY = 30;
@@ -1404,7 +1405,7 @@ public class ScreenRecorderService extends Service {
                 if (latestImage != null) {
                     PixelCopy.request(imageReader.getSurface(), bitmap, copyResult -> {
                         if (copyResult == PixelCopy.SUCCESS) {
-                            boolean debug = true;
+                            boolean debug = false;
 
                             if (!debug) {
                                 Utils.bitmapToMat(bitmap, imageMat);
@@ -1436,7 +1437,7 @@ public class ScreenRecorderService extends Service {
                                     prepareImageAndSend(gray[0]);
                                 }
                             }else{
-                                if (!connectedToServer) {
+                                if (connectedToServer) {
                                     prepareImageAndSend(gray1[0]);
                                 }
                             }
