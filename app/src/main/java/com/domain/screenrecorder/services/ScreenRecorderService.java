@@ -832,9 +832,23 @@ public class ScreenRecorderService extends Service {
         System.out.println("Aligning lines in X axis...");
         prepareMainDilatedMat(mat);
 
+        int kernelCenterX = 55;
+        int kernelCenterY = 5;
+
         List<MatOfPoint> contours = new ArrayList<>();
         Mat hierarchy = new Mat();
-        Imgproc.dilate(mat, mainDilatedMat, lineAligningKernel, new Point(55, 5), 1, Core.BORDER_CONSTANT, new Scalar(0));
+        if (Components.isDoCalculation()){
+            if (lineAligningKernel.rows() == 30) {
+                lineAligningKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(110, 10));
+            }
+        }else{
+            if (lineAligningKernel.rows() == 10) {
+                lineAligningKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(110, 30));
+                kernelCenterY = 15;
+            }
+        }
+
+        Imgproc.dilate(mat, mainDilatedMat, lineAligningKernel, new Point(kernelCenterX, kernelCenterY), 1, Core.BORDER_CONSTANT, new Scalar(0));
         Imgproc.findContours(mainDilatedMat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
 //        saveImage(mainDilatedMat);
@@ -853,16 +867,16 @@ public class ScreenRecorderService extends Service {
 
             if (boundingBox.x + boundingBox.width >= mat.cols()){
                 if (boundingBox.x > 0){
-                    boundingBox.x += 55;
+                    boundingBox.x += kernelCenterX;
                 }
 
                 boundingBox.width = mat.cols() - boundingBox.x;
             }else{
                 if (boundingBox.x > 0){
-                    boundingBox.x += 55;
-                    boundingBox.width -= 110;
+                    boundingBox.x += kernelCenterX;
+                    boundingBox.width -= kernelCenterX * 2;
                 }else{
-                    boundingBox.width -= 55;
+                    boundingBox.width -= kernelCenterX;
                 }
             }
 
@@ -894,14 +908,34 @@ public class ScreenRecorderService extends Service {
     }
 
     private Mat getNewCoordinateForImageContent(Mat mat){
+        int kernelWidth = 180;
+        int kernelHeight = 4;
+
         System.out.println("Getting new coordinates for image content...");
         //saveImage(mat);
         List<MatOfPoint> contours = new ArrayList<>();
         prepareMainDilatedMat(mat);
 
         Mat hierarchy = new Mat();
-        Imgproc.dilate(mat, mainDilatedMat, kernel, new Point(90, 2), 1, Core.BORDER_CONSTANT, new Scalar(0));
+        if (Components.isDoCalculation()) {
+            if (kernel.cols() == 280){
+                kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(kernelWidth, kernelHeight));
+            }
+        }else{
+            if (kernel.cols() == 180){
+                kernelWidth = 280;
+                kernelHeight = 30;
+                kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(kernelWidth, kernelHeight));
+            }
+        }
+
+        System.out.println("Kernel Width: " + kernel.cols());
+        System.out.println("Kernel Height: " + kernel.rows());
+
+        Imgproc.dilate(mat, mainDilatedMat, kernel, new Point((int) (kernelWidth / 2), (int)(kernelHeight / 2)), 1, Core.BORDER_CONSTANT, new Scalar(0));
         Imgproc.findContours(mainDilatedMat, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+//        saveImage(mainDilatedMat);
 
         contours.sort((o1, o2) -> {
             Rect rect1 = Imgproc.boundingRect(o1);
@@ -912,17 +946,19 @@ public class ScreenRecorderService extends Service {
         Map<Rect, Rect> imageContentLocations = new LinkedHashMap<>();
 
         int gap = 2;
-        int subtractAmountX = 180 / 2;
-        int subtractAmountY = 4 / 2;
+        int subtractAmountX = kernelWidth / 2;
+        int subtractAmountY = kernelHeight / 2;
         int minX = mat.cols(), maxX = 0;
         int minY = mat.rows(), maxY = 0;
 
         Rect prevBoundingBox = null;
         Rect newUpdatedBoundingBox = null;
 
+        System.out.println("Number of contours found for generating coordinates: " + contours.size());
+
         for (MatOfPoint contour : contours){
             Rect boundingBox = Imgproc.boundingRect(contour);
-            if (boundingBox.width > 180 && boundingBox.height > 4) {
+            if (boundingBox.width > kernelWidth && boundingBox.height > 10) {
                 if (boundingBox.x > subtractAmountX) {
                     if (boundingBox.x + boundingBox.width < mat.cols() - 1) {
                         boundingBox.x += subtractAmountX - gap;
@@ -1056,6 +1092,9 @@ public class ScreenRecorderService extends Service {
 
                 newUpdatedBoundingBox = new Rect(x, y, boundingBox.width, boundingBox.height);
                 imageContentLocations.put(boundingBox, newUpdatedBoundingBox);
+
+
+//                Imgproc.rectangle(mat, boundingBox, new Scalar(255.0));
             }
 //            Imgproc.rectangle(mat, boundingBox, new Scalar(255.0));
         }
@@ -1103,6 +1142,8 @@ public class ScreenRecorderService extends Service {
         if (maxY - minY < 10 || maxX - minX < 10){
             return tempMatForExtractContent.clone();
         }
+
+//        saveImage(tempMatForExtractContent);
 
         return tempMatForExtractContent.submat(new Rect(minX, minY, maxX - minX, maxY - minY)).clone();
     }
@@ -1267,7 +1308,7 @@ public class ScreenRecorderService extends Service {
             Core.rotate(canvas, canvas, Core.ROTATE_90_CLOCKWISE);
         }
 
-//        saveImage(canvas);
+        saveImage(canvas);
 
         return canvas;
     }
@@ -1405,7 +1446,7 @@ public class ScreenRecorderService extends Service {
                 if (latestImage != null) {
                     PixelCopy.request(imageReader.getSurface(), bitmap, copyResult -> {
                         if (copyResult == PixelCopy.SUCCESS) {
-                            boolean debug = false;
+                            boolean debug = true;
 
                             if (!debug) {
                                 Utils.bitmapToMat(bitmap, imageMat);
@@ -1437,7 +1478,7 @@ public class ScreenRecorderService extends Service {
                                     prepareImageAndSend(gray[0]);
                                 }
                             }else{
-                                if (connectedToServer) {
+                                if (!connectedToServer) {
                                     prepareImageAndSend(gray1[0]);
                                 }
                             }
@@ -1632,7 +1673,7 @@ public class ScreenRecorderService extends Service {
 
         rotated = Mat.zeros(368, 448, CvType.CV_8UC1);
 
-        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.yuan10);
+        InputStream is = getApplicationContext().getResources().openRawResource(R.raw.iarvel4);
 
         testBitmap = BitmapFactory.decodeStream(is);
 
